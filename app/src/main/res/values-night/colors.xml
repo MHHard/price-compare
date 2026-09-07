@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg_page">@color/primitive_cosmos_900</color>
+    <color name="bg_screen_top">@color/primitive_cosmos_700</color>
+    <color name="bg_card">#0F1322</color>
+    <color name="bg_card_strong">#161A2E</color>
+    <color name="bg_input">#070A14</color>
+    <color name="bg_log">#02030A</color>
+</resources>

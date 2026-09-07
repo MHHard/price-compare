@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.TeaPriceCompare" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- 颜色 -->
+        <item name="colorPrimary">@color/brand_primary</item>
+        <item name="colorOnPrimary">@color/text_on_primary</item>
+        <item name="colorPrimaryContainer">@color/brand_soft</item>
+        <item name="colorOnPrimaryContainer">@color/text_primary</item>
+        <item name="colorSecondary">@color/primitive_neon_cyan</item>
+        <item name="colorOnSecondary">@color/primitive_cosmos_900</item>
+        <item name="colorTertiary">@color/primitive_neon_green</item>
+        <item name="colorError">@color/status_error</item>
+
+        <item name="android:colorBackground">@color/bg_page</item>
+        <item name="colorSurface">@color/bg_card</item>
+        <item name="colorOnSurface">@color/text_primary</item>
+        <item name="colorOnSurfaceVariant">@color/text_secondary</item>
+        <item name="colorOutline">@color/stroke_subtle</item>
+        <item name="colorOutlineVariant">@color/stroke_bright</item>
+
+        <!-- 文字 -->
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+        <item name="android:textColorTertiary">@color/text_tertiary</item>
+        <item name="android:textColorHint">@color/text_quaternary</item>
+
+        <!-- 状态栏 / 导航栏：透明，让内容延伸到刘海/手势条 -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:enforceStatusBarContrast" tools:targetApi="29">false</item>
+        <item name="android:enforceNavigationBarContrast" tools:targetApi="29">false</item>
+
+        <!-- 窗口背景 -->
+        <item name="android:windowBackground">@color/bg_page</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+
+        <!-- 控件默认颜色 -->
+        <item name="colorControlHighlight">#33FFFFFF</item>
+        <item name="android:colorControlHighlight">#33FFFFFF</item>
+
+        <!-- Edge-to-edge：content 延伸至状态栏/导航栏之下 -->
+        <item name="android:windowLayoutInDisplayCutoutMode" tools:targetApi="28">shortEdges</item>
+    </style>
+
+    <style name="Theme.TeaPriceCompare.Splash">
+        <item name="android:windowBackground">@color/bg_page</item>
+    </style>
+
+    <!-- 按钮 -->
+    <style name="Widget.Tea.Button.Primary" parent="Widget.Material3.Button">
+        <item name="android:minHeight">@dimen/button_height</item>
+        <item name="android:height">@dimen/button_height</item>
+        <item name="cornerRadius">999dp</item>
+        <item name="backgroundTint">@color/brand_primary</item>
+        <item name="android:textColor">@color/text_on_primary</item>
+        <item name="android:textSize">@dimen/font_body</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:letterSpacing">0.02</item>
+        <item name="rippleColor">#33FFFFFF</item>
+        <item name="elevation">0dp</item>
+    </style>
+
+    <style name="Widget.Tea.Button.Outline" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:minHeight">@dimen/button_height_small</item>
+        <item name="android:height">@dimen/button_height_small</item>
+        <item name="cornerRadius">999dp</item>
+        <item name="strokeColor">@color/stroke_bright</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">@dimen/font_body</item>
+        <item name="android:textStyle">bold</item>
+        <item name="rippleColor">#33FFFFFF</item>
+    </style>
+
+    <style name="Widget.Tea.Button.Text" parent="Widget.Material3.Button.TextButton">
+        <item name="android:textColor">@color/brand_primary</item>
+        <item name="android:textSize">@dimen/font_body</item>
+    </style>
+
+    <!-- 输入框 -->
+    <style name="Widget.Tea.TextInputLayout" parent="Widget.Material3.TextInputLayout.OutlinedBox">
+        <item name="boxStrokeColor">@color/brand_primary</item>
+        <item name="hintTextColor">@color/text_tertiary</item>
+        <item name="boxCornerRadiusTopStart">@dimen/radius_md</item>
+        <item name="boxCornerRadiusTopEnd">@dimen/radius_md</item>
+        <item name="boxCornerRadiusBottomStart">@dimen/radius_md</item>
+        <item name="boxCornerRadiusBottomEnd">@dimen/radius_md</item>
+        <item name="boxStrokeWidth">1dp</item>
+        <item name="boxStrokeWidthFocused">2dp</item>
+        <item name="boxBackgroundColor">@color/bg_input</item>
+    </style>
+
+    <style name="Widget.Tea.EditText" parent="Widget.Material3.TextInputEditText.OutlinedBox">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textColorHint">@color/text_quaternary</item>
+        <item name="android:textSize">@dimen/font_subtitle</item>
+        <item name="android:minHeight">@dimen/input_height</item>
+        <item name="android:paddingStart">@dimen/space_4</item>
+        <item name="android:paddingEnd">@dimen/space_4</item>
+    </style>
+
+    <!-- 卡片 -->
+    <style name="Widget.Tea.Card" parent="Widget.Material3.CardView.Filled">
+        <item name="cardBackgroundColor">@color/bg_card</item>
+        <item name="cardCornerRadius">@dimen/card_corner</item>
+        <item name="cardElevation">0dp</item>
+        <item name="strokeColor">@color/stroke_subtle</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="rippleColor">#22FFFFFF</item>
+    </style>
+
+    <!-- 通用文字 -->
+    <style name="TextAppearance.Tea.Title" parent="TextAppearance.Material3.TitleMedium">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">@dimen/font_title</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="TextAppearance.Tea.Body" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:textSize">@dimen/font_body</item>
+    </style>
+
+    <style name="TextAppearance.Tea.Caption" parent="TextAppearance.Material3.LabelSmall">
+        <item name="android:textColor">@color/text_tertiary</item>
+        <item name="android:textSize">@dimen/font_caption</item>
+        <item name="android:letterSpacing">0.05</item>
+    </style>
+
+    <style name="TextAppearance.Tea.Brand" parent="TextAppearance.Material3.HeadlineSmall">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">@dimen/font_brand</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="TextAppearance.Tea.Price" parent="TextAppearance.Material3.TitleLarge">
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">@dimen/font_num_lg</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:fontFeatureSettings">"tnum"</item>
+    </style>
+</resources>

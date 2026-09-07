@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/rootView"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_page"
+    android:fitsSystemWindows="false">
+
+    <FrameLayout
+        android:id="@+id/topBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_top_bar"
+        app:layout_constraintTop_toTopOf="parent">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/top_bar_height"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="@dimen/space_4">
+            <FrameLayout
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="@drawable/bg_brand_logo"
+                android:contentDescription="奶茶比价">
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:text="T"
+                    android:textColor="@color/text_on_primary"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+            </FrameLayout>
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/space_3"
+                android:layout_weight="1"
+                android:fontFamily="sans-serif-medium"
+                android:text="今天吃什么"
+                android:textAppearance="@style/TextAppearance.Tea.Brand" />
+            <ImageButton
+                android:id="@+id/openSettingsButton"
+                android:layout_width="@dimen/icon_btn_size"
+                android:layout_height="@dimen/icon_btn_size"
+                android:background="@drawable/bg_icon_button"
+                android:contentDescription="设置"
+                android:src="@drawable/ic_settings"
+                app:tint="@color/text_primary" />
+            <ImageButton
+                android:id="@+id/openDebugDumpButton"
+                android:layout_width="@dimen/icon_btn_size"
+                android:layout_height="@dimen/icon_btn_size"
+                android:layout_marginStart="@dimen/space_2"
+                android:background="@drawable/bg_icon_button"
+                android:contentDescription="调试工具"
+                android:src="@drawable/ic_debug"
+                app:tint="@color/text_primary" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/quickCompareCard"
+        style="@style/Widget.Tea.Card"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="@dimen/space_4"
+        android:layout_marginTop="@dimen/space_3"
+        app:cardBackgroundColor="@color/bg_card_strong"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/topBar">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="@dimen/card_padding">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="美团 MVP"
+                android:textColor="@color/primitive_neon_cyan"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_1"
+                android:text="告诉我，你想吃什么"
+                android:textAppearance="@style/TextAppearance.Tea.Title" />
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_1"
+                android:text="我会比较附近店铺的买券、外卖和自取价格"
+                android:textAppearance="@style/TextAppearance.Tea.Caption" />
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.Tea.TextInputLayout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_3"
+                android:hint="店铺或品牌"
+                app:boxBackgroundColor="@color/bg_input">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/quickStoreInput"
+                    style="@style/Widget.Tea.EditText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:imeOptions="actionNext"
+                    android:inputType="text" />
+            </com.google.android.material.textfield.TextInputLayout>
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.Tea.TextInputLayout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_2"
+                android:hint="想吃的商品"
+                app:boxBackgroundColor="@color/bg_input">
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/quickProductInput"
+                    style="@style/Widget.Tea.EditText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:imeOptions="actionDone"
+                    android:inputType="text" />
+            </com.google.android.material.textfield.TextInputLayout>
+            <TextView
+                android:id="@+id/quickServiceStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_2"
+                android:clickable="true"
+                android:focusable="true"
+                android:text="正在检查无障碍服务…"
+                android:textColor="@color/text_tertiary"
+                android:textSize="12sp" />
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/quickCompareButton"
+                style="@style/Widget.Tea.Button.Primary"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/button_height"
+                android:layout_marginTop="@dimen/space_2"
+                android:background="@drawable/bg_btn_primary"
+                android:backgroundTint="@null"
+                android:text="开始查美团最低价"
+                android:textAllCaps="false"
+                app:backgroundTint="@null" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <LinearLayout
+        android:id="@+id/favoriteSectionHeader"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="@dimen/space_4"
+        android:layout_marginTop="@dimen/space_5"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/quickCompareCard">
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="我的查询"
+            android:textAppearance="@style/TextAppearance.Tea.Title" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="点击卡片即可再次查价"
+            android:textAppearance="@style/TextAppearance.Tea.Caption" />
+    </LinearLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/favoriteOrderRecyclerView"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="@dimen/space_2"
+        android:clipToPadding="false"
+        android:paddingHorizontal="@dimen/space_4"
+        android:paddingBottom="@dimen/space_4"
+        android:scrollbars="none"
+        app:layout_constraintBottom_toTopOf="@id/bottomBar"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/favoriteSectionHeader"
+        tools:listitem="@layout/item_favorite_order" />
+
+    <TextView
+        android:id="@+id/emptyStateText"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:paddingHorizontal="@dimen/space_8"
+        android:text="还没有常用查询\n在上面直接查一次，或保存一条查询方便下次使用"
+        android:textColor="@color/text_tertiary"
+        android:textSize="14sp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/bottomBar"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/favoriteSectionHeader" />
+
+    <FrameLayout
+        android:id="@+id/bottomBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/bg_page"
+        android:paddingHorizontal="@dimen/space_4"
+        android:paddingTop="@dimen/space_2"
+        android:paddingBottom="@dimen/space_4"
+        app:layout_constraintBottom_toBottomOf="parent">
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/addFavoriteOrderButton"
+            style="@style/Widget.Tea.Button.Outline"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/button_height"
+            android:text="保存一条常用查询"
+            android:textAllCaps="false" />
+    </FrameLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

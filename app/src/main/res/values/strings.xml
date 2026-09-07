@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">奶茶比价</string>
+    <string name="action_save">保存</string>
+    <string name="action_delete">删除</string>
+    <string name="action_edit">编辑</string>
+    <string name="action_cancel">取消</string>
+    <string name="action_confirm">确定</string>
+    <string name="content_desc_back">返回</string>
+    <string name="content_desc_settings">设置</string>
+    <string name="content_desc_debug">调试工具</string>
+    <string name="content_desc_more">更多</string>
+    <string name="content_desc_close">关闭</string>
+    <string name="content_desc_compare">一键比价</string>
+    <string name="empty_favorite_title">还没有收藏</string>
+    <string name="empty_favorite_subtitle">点下面新增你的第一杯奶茶吧</string>
+    <string name="status_accessibility_on">无障碍服务已开启</string>
+    <string name="status_accessibility_off">无障碍服务未开启</string>
+    <string name="status_accessibility_action">去开启</string>
+    <string name="section_favorites">我的收藏</string>
+    <string name="section_all_compare">全部比价</string>
+    <string name="action_add_favorite">＋ 新增收藏</string>
+    <string name="hint_favorite_name">如：下午茶奶茶</string>
+    <string name="label_store">店铺</string>
+    <string name="label_product">饮品</string>
+    <string name="label_platforms">比价的平台</string>
+    <string name="label_at_least_one">至少 1 个</string>
+    <string name="action_preview_compare">预览比价</string>
+    <string name="title_edit_favorite">编辑收藏</string>
+    <string name="title_new_favorite">新增收藏</string>
+    <string name="error_name_required">请填写订单名称</string>
+    <string name="error_platform_required">至少填写一个平台的店铺和饮品</string>
+    <string name="toast_saved">已保存</string>
+    <string name="toast_service_required">无障碍服务未开启</string>
+    <string name="toast_key_required">请先在设置里填写 DeepSeek API Key</string>
+    <string name="platform_jd">京东</string>
+    <string name="platform_meituan_voucher">美团 · 买券 / 外卖 / 自取</string>
+    <string name="platform_meituan_delivery">美团 · 外卖</string>
+    <string name="platform_meituan_pickup">美团 · 自取</string>
+</resources>

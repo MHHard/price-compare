@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>奶茶比价 · Mock UI v2</title>
+<style>
+  :root {
+    --bg-0: #05060B;
+    --bg-1: #0B0E1A;
+    --bg-2: #11152A;
+    --bg-card: rgba(255,255,255,0.04);
+    --bg-card-strong: rgba(255,255,255,0.08);
+    --bg-stroke: rgba(255,255,255,0.08);
+    --bg-stroke-bright: rgba(255,255,255,0.18);
+
+    --text-0: #F4F6FF;
+    --text-1: #C5CAE0;
+    --text-2: #8A90AC;
+    --text-3: #5A6080;
+
+    --neon-coral: #FF4D6D;
+    --neon-coral-2: #FF7A4D;
+    --neon-cyan: #3DEEFF;
+    --neon-purple: #9D5CFF;
+    --neon-yellow: #FFD23F;
+    --neon-green: #4DEAA8;
+    --neon-pink: #FF5BCB;
+    --neon-red: #FF4D6D;
+
+    --grad-hot: linear-gradient(135deg, #FF4D6D 0%, #FF7A4D 50%, #FFD23F 100%);
+    --grad-cool: linear-gradient(135deg, #3DEEFF 0%, #5B8CFF 50%, #9D5CFF 100%);
+    --grad-cta: linear-gradient(135deg, #FF4D6D 0%, #FF5BCB 100%);
+    --grad-jd: linear-gradient(135deg, #FFB020 0%, #FF6B6B 100%);
+    --grad-mt: linear-gradient(135deg, #4DEAA8 0%, #3DEEFF 100%);
+
+    --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+    --space-5: 20px; --space-6: 24px; --space-8: 32px;
+
+    --radius-sm: 12px; --radius-md: 16px; --radius-lg: 22px; --radius-xl: 28px; --radius-full: 999px;
+
+    --font-display: 28px;
+    --font-title: 20px;
+    --font-subtitle: 16px;
+    --font-body: 14px;
+    --font-caption: 12px;
+    --font-num-xl: 32px;
+    --font-num-md: 20px;
+
+    --glow-coral: 0 0 24px rgba(255,77,109,.45);
+    --glow-cyan: 0 0 24px rgba(61,238,255,.45);
+    --glow-soft: 0 8px 32px rgba(0,0,0,.45);
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
+    background: radial-gradient(1200px 800px at 10% 0%, #1A1144 0%, transparent 60%),
+                radial-gradient(1000px 700px at 90% 100%, #0A2A4A 0%, transparent 55%),
+                #03050D;
+    min-height: 100vh;
+    color: var(--text-0);
+    padding: 40px 16px 60px;
+  }
+
+  .wrap { max-width: 1800px; margin: 0 auto; }
+
+  h1 { font-size: 22px; color: var(--text-0); margin: 0 0 6px; font-weight: 800; letter-spacing: .5px; }
+  .sub { color: var(--text-2); font-size: 13px; margin-bottom: 32px; }
+  .tag { display: inline-block; padding: 3px 10px; background: rgba(255,255,255,.08); border-radius: var(--radius-full); margin-right: 6px; font-size: 11px; color: var(--text-1); border: 1px solid var(--bg-stroke); }
+  .caption { color: var(--text-1); font-size: 13px; margin: 14px 0 8px; text-align: center; }
+  .caption b { color: var(--neon-cyan); }
+  .tag-hot { background: rgba(255,77,109,.18); color: #FF7A8C; border: 1px solid rgba(255,77,109,.3); }
+
+  /* 顶部 Tab 切换 */
+  .tabs {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    margin: 0 0 24px; padding: 8px;
+    background: var(--bg-card);
+    border: 1px solid var(--bg-stroke);
+    border-radius: var(--radius-full);
+    backdrop-filter: blur(20px);
+    width: max-content;
+    max-width: 100%;
+  }
+  .tab {
+    padding: 8px 16px;
+    border-radius: var(--radius-full);
+    font-size: 13px; font-weight: 600;
+    color: var(--text-2);
+    cursor: pointer;
+    transition: all .2s ease;
+    border: none; background: transparent;
+    font-family: inherit;
+  }
+  .tab:hover { color: var(--text-0); }
+  .tab.active {
+    background: var(--grad-cta);
+    color: #fff;
+    box-shadow: 0 4px 16px rgba(255,77,109,.4);
+  }
+
+  /* 网格 */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+    gap: 32px;
+    align-items: start;
+  }
+
+  /* 设备外壳 */
+  .phone {
+    position: relative;
+    width: 360px; height: 800px;
+    background: #0a0a0a;
+    border-radius: 48px;
+    padding: 12px;
+    box-shadow:
+      0 0 0 2px #2a2a2a,
+      0 30px 80px rgba(157,92,255,.18),
+      0 30px 60px rgba(0,0,0,.55),
+      inset 0 0 0 1px #1a1a1a;
+    margin: 0 auto;
+  }
+  .phone::before {
+    content: "";
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    width: 120px; height: 30px; background: #000; border-radius: 20px; z-index: 5;
+  }
+  .phone::after {
+    content: "";
+    position: absolute; left: -3px; top: 120px;
+    width: 3px; height: 30px; background: #1a1a1a; border-radius: 2px 0 0 2px;
+    box-shadow: 0 60px 0 #1a1a1a, 0 110px 0 #1a1a1a;
+  }
+  .screen {
+    position: relative; width: 100%; height: 100%;
+    background: var(--bg-0);
+    border-radius: 38px; overflow: hidden; isolation: isolate;
+  }
+  .screen::before {
+    content: "";
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(500px 380px at 15% 5%, rgba(255,77,109,.28) 0%, transparent 55%),
+      radial-gradient(440px 360px at 90% 25%, rgba(61,238,255,.22) 0%, transparent 60%),
+      radial-gradient(360px 280px at 50% 110%, rgba(157,92,255,.28) 0%, transparent 60%);
+    z-index: 0; pointer-events: none;
+  }
+  .screen::after {
+    content: "";
+    position: absolute; inset: 0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.05 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    opacity: .5; mix-blend-mode: overlay;
+    z-index: 0; pointer-events: none;
+  }
+
+  .status-bar {
+    position: relative; z-index: 2;
+    height: env(safe-area-inset-top, 24px); min-height: 24px;
+    display: flex; align-items: flex-end; justify-content: space-between;
+    padding: 0 28px 4px; font-size: 13px; font-weight: 600; color: var(--text-0);
+  }
+  .status-bar .right { display: flex; align-items: center; gap: 4px; }
+  .status-bar svg { width: 14px; height: 14px; }
+
+  .app { position: relative; z-index: 1; height: calc(100% - 24px); display: flex; flex-direction: column; }
+
+  /* TopAppBar */
+  .top-bar { height: 60px; display: flex; align-items: center; justify-content: space-between; padding: 0 8px 0 16px; }
+  .top-bar .left { display: flex; align-items: center; gap: 8px; }
+  .top-bar .back {
+    width: 40px; height: 40px; display: grid; place-items: center;
+    border-radius: var(--radius-full);
+    color: var(--text-1); cursor: pointer;
+    border: none; background: transparent;
+  }
+  .top-bar .back:hover { background: var(--bg-card); color: var(--text-0); }
+  .top-bar .back svg { width: 22px; height: 22px; }
+  .top-bar .title { font-size: 18px; font-weight: 700; color: var(--text-0); }
+  .top-bar .right-action {
+    padding: 8px 14px; border-radius: var(--radius-full);
+    background: var(--grad-cta); color: #fff; font-size: 13px; font-weight: 700;
+    border: none; cursor: pointer;
+    box-shadow: 0 4px 12px rgba(255,77,109,.35);
+  }
+  .top-bar .icon-btn { width: 40px; height: 40px; }
+
+  .icon-btn {
+    width: 40px; height: 40px;
+    display: grid; place-items: center;
+    border-radius: var(--radius-full);
+    background: var(--bg-card);
+    border: 1px solid var(--bg-stroke);
+    color: var(--text-1);
+    cursor: pointer;
+    backdrop-filter: blur(20px);
+    transition: all .15s ease;
+  }
+  .icon-btn:hover { background: var(--bg-card-strong); color: var(--text-0); }
+  .icon-btn svg { width: 20px; height: 20px; }
+
+  .scroll { flex: 1; overflow-y: auto; padding: 6px 16px 12px; -webkit-overflow-scrolling: touch; }
+  .scroll::-webkit-scrollbar { display: none; }
+
+  /* ========== 首页特有 ========== */
+  .hero { display: flex; align-items: center; justify-content: space-between; margin: 4px 4px 14px; }
+  .hero .h { font-size: 13px; color: var(--text-2); }
+  .hero .h b { color: var(--text-0); font-weight: 700; }
+  .hero .streak {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 10px; border-radius: var(--radius-full);
+    background: rgba(255,210,63,.12); color: var(--neon-yellow);
+    font-size: 11px; font-weight: 700;
+    border: 1px solid rgba(255,210,63,.25);
+  }
+  .pill {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; border-radius: var(--radius-full);
+    background: var(--bg-card);
+    border: 1px solid var(--bg-stroke);
+    backdrop-filter: blur(20px);
+    margin: 0 4px 16px;
+  }
+  .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--neon-green); box-shadow: 0 0 12px var(--neon-green); }
+  .pill .t { font-size: 12px; color: var(--text-1); flex: 1; }
+  .pill .t b { color: var(--text-0); font-weight: 600; }
+  .pill .more { color: var(--text-2); }
+  .section-header { display: flex; align-items: center; justify-content: space-between; padding: 4px 4px 10px; }
+  .section-header .h { font-size: 15px; font-weight: 700; color: var(--text-0); display: flex; align-items: center; gap: 8px; }
+  .section-header .h .count {
+    font-size: 11px; font-weight: 700; color: var(--neon-cyan);
+    background: rgba(61,238,255,.12); padding: 2px 8px; border-radius: var(--radius-full);
+    border: 1px solid rgba(61,238,255,.25);
+  }
+  .section-header .a { font-size: 12px; color: var(--text-2); font-weight: 500; }
+
+  .fav-card {
+    position: relative; background: var(--bg-card);
+    border: 1px solid var(--bg-stroke);
+    border-radius: var(--radius-lg);
+    padding: 16px; margin-bottom: 12px;
+    backdrop-filter: blur(20px);
+    overflow: hidden;
+  }
+  .fav-card.hot::before {
+    content: ""; position: absolute; inset: -1px;
+    background: var(--grad-cta); border-radius: inherit;
+    z-index: -1; opacity: .35; filter: blur(14px);
+  }
+  .fav-card .row1 { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .fav-card .name { font-size: var(--font-subtitle); font-weight: 700; color: var(--text-0); display: flex; align-items: center; gap: 8px; }
+  .fav-card .name .emoji { font-size: 22px; filter: drop-shadow(0 2px 4px rgba(0,0,0,.5)); }
+  .fav-card .compare-btn {
+    display: flex; align-items: center; gap: 4px;
+    padding: 6px 12px; border-radius: var(--radius-full);
+    background: rgba(61,238,255,.1);
+    border: 1px solid rgba(61,238,255,.3);
+    color: var(--neon-cyan);
+    font-size: 11px; font-weight: 700; cursor: pointer;
+  }
+  .fav-card .compare-btn svg { width: 12px; height: 12px; }
+  .fav-card .shops { font-size: 12px; color: var(--text-2); margin-bottom: 12px; }
+  .fav-card .shops span + span::before { content: "·"; margin: 0 8px; color: var(--text-3); }
+
+  .price-grid { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: stretch; }
+  .price-cell { position: relative; padding: 10px 12px; border-radius: var(--radius-md); background: rgba(255,255,255,.03); border: 1px solid var(--bg-stroke); overflow: hidden; }
+  .price-cell::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+  .price-cell.jd::before { background: var(--grad-jd); }
+  .price-cell.mt::before { background: var(--grad-mt); }
+  .price-cell .label { font-size: 10px; font-weight: 700; letter-spacing: 1px; color: var(--text-2); text-transform: uppercase; }
+  .price-cell.jd .label { color: var(--neon-yellow); }
+  .price-cell.mt .label { color: var(--neon-green); }
+  .price-cell .price { font-size: 20px; font-weight: 800; color: var(--text-0); font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .price-cell.cheap { background: linear-gradient(135deg, rgba(77,234,168,.12), rgba(61,238,255,.06)); border-color: rgba(77,234,168,.4); }
+  .price-cell.cheap .price { background: var(--grad-mt); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .save-tag { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 10px; border-radius: var(--radius-md); background: var(--grad-cta); color: #fff; font-weight: 800; box-shadow: var(--glow-coral); min-width: 56px; }
+  .save-tag .num { font-size: 16px; line-height: 1; }
+  .save-tag .lbl { font-size: 9px; opacity: .9; margin-top: 2px; letter-spacing: 1px; }
+
+  .sticky-bottom { padding: 12px 16px calc(env(safe-area-inset-bottom, 0px) + 16px); }
+  .btn {
+    position: relative; display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; height: 52px; border-radius: var(--radius-full);
+    font-size: 15px; font-weight: 700; letter-spacing: .3px;
+    border: none; cursor: pointer; overflow: hidden;
+    font-family: inherit;
+  }
+  .btn-primary { background: var(--grad-cta); color: #fff; box-shadow: 0 8px 24px rgba(255,77,109,.45), inset 0 1px 0 rgba(255,255,255,.2); }
+  .btn-primary::before { content: ""; position: absolute; inset: 0; background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,.25) 50%, transparent 70%); transform: translateX(-100%); animation: shine 3s infinite; }
+  @keyframes shine { 0% { transform: translateX(-100%); } 60%, 100% { transform: translateX(100%); } }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-outline { background: rgba(255,255,255,.05); color: var(--text-0); border: 1px solid var(--bg-stroke-bright); box-shadow: none; }
+  .btn-outline:active { background: rgba(255,255,255,.1); transform: scale(0.98); }
+
+  .gesture-bar { height: 24px; display: flex; align-items: center; justify-content: center; }
+  .gesture-bar .handle { width: 120px; height: 4px; background: rgba(255,255,255,.5); border-radius: 2px; }
+
+  /* Bottom Sheet */
+  .overlay { position: absolute; inset: 0; background: rgba(0,0,0,.65); backdrop-filter: blur(8px); z-index: 10; animation: fadeIn .25s ease; }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; background: linear-gradient(180deg, #0F1226 0%, #0A0D1F 100%); border: 1px solid var(--bg-stroke); border-bottom: none; border-radius: 28px 28px 0 0; padding: 8px 20px calc(env(safe-area-inset-bottom, 0px) + 20px); box-shadow: 0 -16px 48px rgba(0,0,0,.6); z-index: 11; animation: slideUp .4s cubic-bezier(.2,.7,.2,1); overflow: hidden; }
+  .sheet::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--grad-cta); }
+  .sheet .handle { width: 40px; height: 4px; background: rgba(255,255,255,.25); border-radius: 2px; margin: 10px auto 16px; }
+  .sheet-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+  .sheet-head .icon { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; font-size: 22px; background: linear-gradient(135deg, rgba(255,77,109,.25), rgba(157,92,255,.25)); border: 1px solid rgba(255,77,109,.35); }
+  .sheet-head h2 { margin: 0; font-size: 20px; font-weight: 800; color: var(--text-0); }
+  .sheet-head .sub { font-size: 11px; color: var(--text-2); margin-top: 2px; letter-spacing: .5px; text-transform: uppercase; }
+  .sheet-head .tag-close { margin-left: auto; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: rgba(255,255,255,.08); color: var(--text-1); }
+  .price-row-lg { position: relative; display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: var(--radius-md); margin-bottom: 10px; background: rgba(255,255,255,.04); border: 1px solid var(--bg-stroke); overflow: hidden; }
+  .price-row-lg::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
+  .price-row-lg.jd::before { background: var(--grad-jd); }
+  .price-row-lg.mt::before { background: var(--grad-mt); }
+  .price-row-lg.cheap { background: linear-gradient(135deg, rgba(77,234,168,.14), rgba(61,238,255,.06)); border-color: rgba(77,234,168,.35); }
+  .price-row-lg .logo { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 16px; flex-shrink: 0; }
+  .price-row-lg.jd .logo { background: var(--grad-jd); }
+  .price-row-lg.mt .logo { background: var(--grad-mt); }
+  .price-row-lg .info { flex: 1; min-width: 0; }
+  .price-row-lg .pname { font-size: 14px; color: var(--text-0); font-weight: 600; }
+  .price-row-lg .pshop { font-size: 11px; color: var(--text-2); margin-top: 2px; }
+  .price-row-lg .price { font-size: 22px; font-weight: 800; color: var(--text-0); font-variant-numeric: tabular-nums; }
+  .price-row-lg.cheap .price { background: var(--grad-mt); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .badge-cheap { display: inline-block; margin-left: 6px; font-size: 9px; font-weight: 800; letter-spacing: .5px; padding: 3px 6px; background: var(--grad-mt); color: #00261B; border-radius: 5px; text-transform: uppercase; }
+  .summary { background: linear-gradient(135deg, rgba(255,77,109,.16), rgba(157,92,255,.16)); border: 1px solid rgba(255,77,109,.3); border-radius: var(--radius-md); padding: 14px 16px; margin: 14px 0 18px; display: flex; align-items: center; gap: 12px; position: relative; overflow: hidden; }
+  .summary::after { content: ""; position: absolute; right: -20px; top: -20px; width: 80px; height: 80px; border-radius: 50%; background: radial-gradient(circle, rgba(255,77,109,.4) 0%, transparent 70%); filter: blur(10px); }
+  .summary .icon { width: 36px; height: 36px; border-radius: 12px; background: var(--grad-cta); display: grid; place-items: center; box-shadow: var(--glow-coral); flex-shrink: 0; }
+  .summary .icon svg { width: 20px; height: 20px; color: #fff; }
+  .summary .text { flex: 1; font-size: 13px; color: var(--text-0); line-height: 1.4; position: relative; z-index: 1; }
+  .summary .text b { background: var(--grad-hot); -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 800; }
+  .summary .arrow-icon { color: var(--neon-coral); }
+  .sheet .actions { display: flex; gap: 10px; }
+  .sheet .actions .btn-outline { flex: 1; }
+  .sheet .actions .btn-primary { flex: 1.5; }
+  @keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+  /* ========== 编辑页特有 ========== */
+  .form-group { margin-bottom: 18px; }
+  .form-label { display: flex; align-items: center; justify-content: space-between; margin: 0 4px 8px; }
+  .form-label .l { font-size: 12px; font-weight: 700; color: var(--text-1); letter-spacing: 1px; text-transform: uppercase; }
+  .form-label .r { font-size: 11px; color: var(--text-3); }
+  .input-box {
+    display: flex; align-items: center; gap: 10px;
+    height: 52px; padding: 0 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--bg-stroke);
+    border-radius: var(--radius-md);
+    backdrop-filter: blur(20px);
+    transition: all .15s ease;
+  }
+  .input-box:focus-within { border-color: var(--neon-coral); box-shadow: 0 0 0 4px rgba(255,77,109,.12); }
+  .input-box .ic { font-size: 18px; }
+  .input-box .inp {
+    flex: 1; background: transparent; border: none; outline: none;
+    color: var(--text-0); font-size: 15px; font-weight: 500;
+    font-family: inherit;
+  }
+  .input-box .inp::placeholder { color: var(--text-3); }
+  .input-box .clear { color: var(--text-3); font-size: 18px; cursor: pointer; }
+
+  /* 平台分组卡 */
+  .platform-card {
+    position: relative;
+    background: var(--bg-card);
+    border: 1px solid var(--bg-stroke);
+    border-radius: var(--radius-lg);
+    padding: 16px 16px 16px 20px;
+    margin-bottom: 12px;
+    backdrop-filter: blur(20px);
+    overflow: hidden;
+  }
+  .platform-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
+  .platform-card.jd::before { background: var(--grad-jd); }
+  .platform-card.mt::before { background: var(--grad-mt); }
+  .platform-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .platform-head .left { display: flex; align-items: center; gap: 10px; }
+  .platform-head .logo { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 13px; }
+  .platform-card.jd .logo { background: var(--grad-jd); }
+  .platform-card.mt .logo { background: var(--grad-mt); }
+  .platform-head .name { font-size: 15px; font-weight: 700; color: var(--text-0); }
+  .platform-head .badge { font-size: 10px; color: var(--text-2); padding: 2px 8px; background: rgba(255,255,255,.05); border-radius: var(--radius-full); }
+  .platform-head .toggle { width: 36px; height: 20px; border-radius: var(--radius-full); background: var(--neon-coral); position: relative; cursor: pointer; }
+  .platform-head .toggle::after { content: ""; position: absolute; top: 2px; right: 2px; width: 16px; height: 16px; background: #fff; border-radius: 50%; }
+  .platform-head .toggle.off { background: rgba(255,255,255,.12); }
+  .platform-head .toggle.off::after { right: auto; left: 2px; }
+  .platform-card .input-box { background: rgba(0,0,0,.2); margin-bottom: 8px; }
+  .platform-card .input-box:last-child { margin-bottom: 0; }
+  .platform-card .input-box .lbl-mini { font-size: 11px; color: var(--text-2); min-width: 50px; }
+
+  .edit-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+
+  /* ========== 设置页特有 ========== */
+  .settings-group { margin-bottom: 18px; }
+  .settings-group .gt { font-size: 11px; font-weight: 700; color: var(--text-2); letter-spacing: 1.5px; text-transform: uppercase; margin: 0 4px 8px; padding-left: 4px; }
+  .settings-list {
+    background: var(--bg-card);
+    border: 1px solid var(--bg-stroke);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    backdrop-filter: blur(20px);
+  }
+  .settings-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--bg-stroke);
+    cursor: pointer;
+    transition: background .15s ease;
+  }
+  .settings-item:last-child { border-bottom: none; }
+  .settings-item:hover { background: var(--bg-card-strong); }
+  .settings-item .ic {
+    width: 36px; height: 36px; border-radius: 10px;
+    display: grid; place-items: center; font-size: 16px;
+    flex-shrink: 0;
+  }
+  .settings-item .ic.purple { background: linear-gradient(135deg, rgba(157,92,255,.2), rgba(91,140,255,.2)); border: 1px solid rgba(157,92,255,.3); }
+  .settings-item .ic.cyan { background: linear-gradient(135deg, rgba(61,238,255,.2), rgba(77,234,168,.2)); border: 1px solid rgba(61,238,255,.3); }
+  .settings-item .ic.coral { background: linear-gradient(135deg, rgba(255,77,109,.2), rgba(255,210,63,.2)); border: 1px solid rgba(255,77,109,.3); }
+  .settings-item .ic.yellow { background: linear-gradient(135deg, rgba(255,210,63,.2), rgba(255,123,77,.2)); border: 1px solid rgba(255,210,63,.3); }
+  .settings-item .ic.green { background: linear-gradient(135deg, rgba(77,234,168,.2), rgba(61,238,255,.2)); border: 1px solid rgba(77,234,168,.3); }
+  .settings-item .body { flex: 1; min-width: 0; }
+  .settings-item .t1 { font-size: 14px; font-weight: 600; color: var(--text-0); }
+  .settings-item .t2 { font-size: 11px; color: var(--text-2); margin-top: 2px; }
+  .settings-item .right { color: var(--text-2); font-size: 12px; display: flex; align-items: center; gap: 4px; }
+  .settings-item .right .v { color: var(--text-1); }
+  .settings-item .arrow { color: var(--text-3); }
+  .toggle { width: 40px; height: 22px; border-radius: var(--radius-full); background: var(--neon-coral); position: relative; cursor: pointer; box-shadow: 0 0 12px rgba(255,77,109,.4); }
+  .toggle::after { content: ""; position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; background: #fff; border-radius: 50%; transition: all .2s ease; }
+  .toggle.off { background: rgba(255,255,255,.15); box-shadow: none; }
+  .toggle.off::after { right: auto; left: 2px; }
+
+  /* Segmented */
+  .segmented { display: flex; padding: 3px; background: rgba(0,0,0,.3); border-radius: var(--radius-full); }
+  .segmented .seg { flex: 1; padding: 6px 0; font-size: 11px; font-weight: 600; text-align: center; color: var(--text-2); border-radius: var(--radius-full); cursor: pointer; }
+  .segmented .seg.on { background: var(--grad-cool); color: #fff; box-shadow: 0 2px 8px rgba(61,238,255,.3); }
+
+  /* ========== 调试页特有 ========== */
+  .debug-toolbar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 4px 12px;
+  }
+  .debug-toolbar .pill { margin: 0; padding: 6px 10px; }
+  .debug-toolbar .pill .t { font-size: 11px; }
+  .chip-btn {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 6px 12px; border-radius: var(--radius-full);
+    background: var(--bg-card); border: 1px solid var(--bg-stroke);
+    color: var(--text-1); font-size: 11px; font-weight: 600;
+    cursor: pointer;
+  }
+  .chip-btn:hover { background: var(--bg-card-strong); color: var(--text-0); }
+  .chip-btn.coral { background: rgba(255,77,109,.12); border-color: rgba(255,77,109,.3); color: var(--neon-coral); }
+  .chip-btn.cyan { background: rgba(61,238,255,.12); border-color: rgba(61,238,255,.3); color: var(--neon-cyan); }
+
+  .debug-log {
+    background: rgba(0,0,0,.4);
+    border: 1px solid var(--bg-stroke);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 11px;
+    line-height: 1.7;
+    color: var(--text-1);
+    height: 440px;
+    overflow-y: auto;
+  }
+  .debug-log .ln { display: block; }
+  .debug-log .tag-attr { color: var(--neon-cyan); }
+  .debug-log .tag-str  { color: var(--neon-yellow); }
+  .debug-log .tag-num  { color: var(--neon-pink); }
+  .debug-log .tag-key  { color: var(--neon-purple); }
+  .debug-log .tag-com  { color: var(--text-3); }
+  .debug-log .tag-arr  { color: var(--neon-green); }
+  .debug-log .ln-info  { color: var(--neon-green); }
+  .debug-log .ln-warn  { color: var(--neon-yellow); }
+  .debug-log .ln-err   { color: var(--neon-coral); }
+  .debug-log::-webkit-scrollbar { width: 6px; }
+  .debug-log::-webkit-scrollbar-track { background: transparent; }
+  .debug-log::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 3px; }
+
+  .debug-stats {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+    margin-bottom: 12px;
+  }
+  .stat {
+    background: var(--bg-card);
+    border: 1px solid var(--bg-stroke);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+    backdrop-filter: blur(20px);
+  }
+  .stat .v {
+    font-size: 20px; font-weight: 800;
+    background: var(--grad-cool);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat .l { font-size: 10px; color: var(--text-2); margin-top: 2px; letter-spacing: 1px; text-transform: uppercase; }
+
+  .footer-note { text-align: center; color: var(--text-2); font-size: 12px; margin-top: 60px; padding: 20px; border-top: 1px solid var(--bg-stroke); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>奶茶比价 · Mock UI v2</h1>
+  <div class="sub">
+    <span class="tag tag-hot">v2 霓虹玻璃版</span>
+    收藏夹 + 一键比价 · 深色玻璃拟态 · 渐变光晕 · 刘海 / 手势条已适配
+  </div>
+
+  <!-- 顶部 Tab 过滤 -->
+  <div class="tabs">
+    <button class="tab active" data-filter="all">全部 4 屏</button>
+    <button class="tab" data-filter="home">① 首页 + 比价结果</button>
+    <button class="tab" data-filter="edit">② 编辑/新增订单</button>
+    <button class="tab" data-filter="settings">③ 设置</button>
+    <button class="tab" data-filter="debug">④ 调试工具</button>
+  </div>
+
+  <div class="grid">
+
+    <!-- ============ 1. 首页 ============ -->
+    <div data-screen="home">
+      <div class="caption"><b>① 首页</b> · 收藏夹 + 一键比价（可触发 BottomSheet）</div>
+      <div class="phone">
+        <div class="screen">
+          <div class="status-bar">
+            <span>9:41</span>
+            <span class="right">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 17h2v3H2zm4-3h2v6H6zm4-3h2v9h-2zm4-3h2v12h-2zm4-3h2v15h-2z"/></svg>
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3a4.237 4.237 0 0 0-6 0zm-4-4l2 2a7.07 7.07 0 0 1 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4z"/></svg>
+            </span>
+          </div>
+          <div class="app">
+            <div class="top-bar">
+              <div class="title" style="font-size:22px; background:var(--grad-cta); -webkit-background-clip:text; background-clip:text; color:transparent; display:flex; align-items:center; gap:8px;">
+                <span style="font-size:22px; -webkit-text-fill-color:initial;">🧋</span>奶茶比价
+              </div>
+              <div class="actions" style="display:flex; gap:4px;">
+                <div class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9 1.65 1.65 0 0 0 4.27 7.18l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.36.16.66.43.86.78.2.34.31.74.31 1.14V11a2 2 0 0 1 0 4h-.09c-.4 0-.8.11-1.14.31-.35.2-.62.5-.78.86z"/></svg></div>
+                <div class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div>
+              </div>
+            </div>
+            <div class="scroll">
+              <div class="hero">
+                <div class="h">早，<b>小马</b> · 今天比 <b style="color:var(--neon-green)">3 杯</b> 便宜</div>
+                <div class="streak">🔥 已省 ¥28</div>
+              </div>
+              <div class="pill">
+                <div class="dot"></div>
+                <div class="t"><b>无障碍服务已开启</b> · 自动比价</div>
+                <svg class="more" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+              </div>
+              <div class="section-header">
+                <div class="h">我的收藏 <span class="count">3</span></div>
+                <div class="a">查看全部</div>
+              </div>
+              <div class="fav-card hot">
+                <div class="row1">
+                  <div class="name"><span class="emoji">🧋</span>下午茶奶茶</div>
+                  <div class="compare-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>一键比价</div>
+                </div>
+                <div class="shops"><span>喜茶</span><span>一点点</span><span>蜜雪冰城</span></div>
+                <div class="price-grid">
+                  <div class="price-cell jd"><div class="label">JD 京东</div><div class="price">¥18</div></div>
+                  <div class="price-cell mt cheap"><div class="label">MT 美团</div><div class="price">¥15</div></div>
+                  <div class="save-tag"><div class="num">¥3</div><div class="lbl">SAVE</div></div>
+                </div>
+              </div>
+              <div class="fav-card">
+                <div class="row1">
+                  <div class="name"><span class="emoji">☕</span>加班续命大杯</div>
+                  <div class="compare-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>一键比价</div>
+                </div>
+                <div class="shops"><span>瑞幸</span><span>一点点</span></div>
+                <div class="price-grid">
+                  <div class="price-cell jd"><div class="label">JD 京东</div><div class="price">¥22</div></div>
+                  <div class="price-cell mt cheap"><div class="label">MT 美团</div><div class="price">¥19</div></div>
+                  <div class="save-tag"><div class="num">¥3</div><div class="lbl">SAVE</div></div>
+                </div>
+              </div>
+              <div class="fav-card">
+                <div class="row1">
+                  <div class="name"><span class="emoji">🍹</span>周末水果茶</div>
+                  <div class="compare-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>一键比价</div>
+                </div>
+                <div class="shops"><span>奈雪</span><span>喜茶</span></div>
+                <div class="price-grid">
+                  <div class="price-cell jd"><div class="label">JD 京东</div><div class="price">¥25</div></div>
+                  <div class="price-cell mt"><div class="label">MT 美团</div><div class="price">¥25</div></div>
+                  <div class="save-tag" style="background:rgba(255,255,255,.08); box-shadow:none; color:var(--text-2);"><div class="num">—</div><div class="lbl">SAME</div></div>
+                </div>
+              </div>
+            </div>
+            <div class="sticky-bottom"><button class="btn btn-primary">＋ 新增收藏</button></div>
+            <div class="gesture-bar"><div class="handle"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 1b. 比价结果（独立预览） ============ -->
+    <div data-screen="home">
+      <div class="caption"><b>① 比价结果 BottomSheet</b> · 长按 / 点击卡片触发</div>
+      <div class="phone">
+        <div class="screen">
+          <div class="status-bar">
+            <span>9:41</span>
+            <span class="right">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 17h2v3H2zm4-3h2v6H6zm4-3h2v9h-2zm4-3h2v12h-2zm4-3h2v15h-2z"/></svg>
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3a4.237 4.237 0 0 0-6 0zm-4-4l2 2a7.07 7.07 0 0 1 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4z"/></svg>
+            </span>
+          </div>
+          <div class="app">
+            <!-- 这里用纯背景占位即可 -->
+          </div>
+          <div class="overlay"></div>
+          <div class="sheet">
+            <div class="handle"></div>
+            <div class="sheet-head">
+              <div class="icon">🧋</div>
+              <div>
+                <h2>下午茶奶茶</h2>
+                <div class="sub">多肉葡萄 · 大杯 · 刚刚</div>
+              </div>
+              <div class="tag-close">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </div>
+            </div>
+            <div class="price-row-lg jd">
+              <div class="logo">京</div>
+              <div class="info">
+                <div class="pname">多肉葡萄（大杯）</div>
+                <div class="pshop">喜茶 · 朝阳大悦城店</div>
+              </div>
+              <div class="price">¥18</div>
+            </div>
+            <div class="price-row-lg mt cheap">
+              <div class="logo">美</div>
+              <div class="info">
+                <div class="pname">多肉葡萄（大杯）</div>
+                <div class="pshop">喜茶 · 朝阳大悦城店</div>
+              </div>
+              <div class="price">¥15<span class="badge-cheap">Cheaper</span></div>
+            </div>
+            <div class="summary">
+              <div class="icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="text">美团比京东 <b>便宜 ¥3</b><br><span style="color: var(--text-2); font-size: 11px;">建议在美团下单</span></div>
+              <svg class="arrow-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </div>
+            <div class="actions">
+              <button class="btn btn-outline">重新比价</button>
+              <button class="btn btn-primary">去美团下单</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 2. 编辑/新增 ============ -->
+    <div data-screen="edit">
+      <div class="caption"><b>② 新增/编辑订单</b> · 名称 + 京东/美团关键词</div>
+      <div class="phone">
+        <div class="screen">
+          <div class="status-bar">
+            <span>9:41</span>
+            <span class="right">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 17h2v3H2zm4-3h2v6H6zm4-3h2v9h-2zm4-3h2v12h-2zm4-3h2v15h-2z"/></svg>
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3a4.237 4.237 0 0 0-6 0zm-4-4l2 2a7.07 7.07 0 0 1 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4z"/></svg>
+            </span>
+          </div>
+          <div class="app">
+            <div class="top-bar">
+              <div class="left">
+                <button class="back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
+                <div class="title">新增收藏</div>
+              </div>
+              <button class="right-action">保存</button>
+            </div>
+            <div class="scroll">
+              <div class="form-group">
+                <div class="form-label">
+                  <div class="l">📝 名称</div>
+                  <div class="r">3 / 20</div>
+                </div>
+                <div class="input-box">
+                  <input class="inp" value="下午茶奶茶" />
+                  <span class="clear">✕</span>
+                </div>
+              </div>
+
+              <div class="form-label" style="margin: 0 4px 12px;">
+                <div class="l">🛒 比价的平台</div>
+                <div class="r">至少 1 个</div>
+              </div>
+
+              <!-- 京东 -->
+              <div class="platform-card jd">
+                <div class="platform-head">
+                  <div class="left">
+                    <div class="logo">京</div>
+                    <div class="name">京东</div>
+                    <div class="badge">已开启</div>
+                  </div>
+                  <div class="toggle"></div>
+                </div>
+                <div class="input-box">
+                  <span class="lbl-mini">店铺</span>
+                  <input class="inp" value="喜茶" />
+                </div>
+                <div class="input-box">
+                  <span class="lbl-mini">饮品</span>
+                  <input class="inp" value="多肉葡萄" placeholder="如 多肉葡萄" />
+                </div>
+              </div>
+
+              <!-- 美团 -->
+              <div class="platform-card mt">
+                <div class="platform-head">
+                  <div class="left">
+                    <div class="logo">美</div>
+                    <div class="name">美团</div>
+                    <div class="badge">已开启</div>
+                  </div>
+                  <div class="toggle"></div>
+                </div>
+                <div class="input-box">
+                  <span class="lbl-mini">店铺</span>
+                  <input class="inp" value="喜茶" />
+                </div>
+                <div class="input-box">
+                  <span class="lbl-mini">饮品</span>
+                  <input class="inp" value="多肉葡萄" />
+                </div>
+              </div>
+
+              <!-- 关闭态示例 -->
+              <div class="platform-card mt" style="opacity: .55;">
+                <div class="platform-head">
+                  <div class="left">
+                    <div class="logo">美</div>
+                    <div class="name">美团</div>
+                    <div class="badge">已关闭</div>
+                  </div>
+                  <div class="toggle off"></div>
+                </div>
+                <div class="input-box" style="opacity: .5;">
+                  <span class="lbl-mini">店铺</span>
+                  <input class="inp" placeholder="开启后填写" disabled />
+                </div>
+              </div>
+
+              <div class="edit-actions">
+                <button class="btn btn-outline" style="height:48px;">预览比价</button>
+                <button class="btn btn-primary">保存收藏</button>
+              </div>
+            </div>
+            <div class="gesture-bar"><div class="handle"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 3. 设置 ============ -->
+    <div data-screen="settings">
+      <div class="caption"><b>③ 设置</b> · API Key / 暗色 / 关于</div>
+      <div class="phone">
+        <div class="screen">
+          <div class="status-bar">
+            <span>9:41</span>
+            <span class="right">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 17h2v3H2zm4-3h2v6H6zm4-3h2v9h-2zm4-3h2v12h-2zm4-3h2v15h-2z"/></svg>
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3a4.237 4.237 0 0 0-6 0zm-4-4l2 2a7.07 7.07 0 0 1 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4z"/></svg>
+            </span>
+          </div>
+          <div class="app">
+            <div class="top-bar">
+              <div class="left">
+                <button class="back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
+                <div class="title">设置</div>
+              </div>
+            </div>
+            <div class="scroll">
+              <!-- 用户卡 -->
+              <div style="display:flex; align-items:center; gap:12px; padding:8px 4px 16px;">
+                <div style="width:48px; height:48px; border-radius:14px; background:var(--grad-cta); display:grid; place-items:center; font-size:24px; box-shadow: var(--glow-coral);">🐴</div>
+                <div style="flex:1;">
+                  <div style="font-size:16px; font-weight:700; color:var(--text-0);">小马同学</div>
+                  <div style="font-size:12px; color:var(--text-2); margin-top:2px;">已加入 12 天 · 累计比价 89 次</div>
+                </div>
+                <div style="padding:4px 10px; border-radius:var(--radius-full); background:rgba(255,210,63,.12); color:var(--neon-yellow); font-size:10px; font-weight:700; border:1px solid rgba(255,210,63,.25);">PRO</div>
+              </div>
+
+              <!-- AI 识别 -->
+              <div class="settings-group">
+                <div class="gt">🤖 AI 识别</div>
+                <div class="settings-list">
+                  <div class="settings-item">
+                    <div class="ic purple">🔑</div>
+                    <div class="body">
+                      <div class="t1">DeepSeek API Key</div>
+                      <div class="t2">用于识别平台价格</div>
+                    </div>
+                    <div class="right"><span class="v">sk-xx…12</span><svg class="arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>
+                  </div>
+                  <div class="settings-item">
+                    <div class="ic cyan">⚡</div>
+                    <div class="body">
+                      <div class="t1">比价速度</div>
+                      <div class="t2">越快越耗 API 配额</div>
+                    </div>
+                    <div class="right"><span class="v">标准</span><svg class="arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 通用 -->
+              <div class="settings-group">
+                <div class="gt">🎨 通用</div>
+                <div class="settings-list">
+                  <div class="settings-item" style="display:block;">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                      <div class="ic coral">🌙</div>
+                      <div class="body"><div class="t1">暗色模式</div><div class="t2">跟随系统</div></div>
+                    </div>
+                    <div class="segmented" style="margin-top:12px;">
+                      <div class="seg">系统</div>
+                      <div class="seg on">深色</div>
+                      <div class="seg">浅色</div>
+                    </div>
+                  </div>
+                  <div class="settings-item">
+                    <div class="ic yellow">🔔</div>
+                    <div class="body"><div class="t1">比价完成通知</div><div class="t2">便宜 ¥3 以上时提醒</div></div>
+                    <div class="toggle"></div>
+                  </div>
+                  <div class="settings-item">
+                    <div class="ic green">🎯</div>
+                    <div class="body"><div class="t1">仅 Wi-Fi 下比价</div><div class="t2">省流量</div></div>
+                    <div class="toggle off"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 关于 -->
+              <div class="settings-group">
+                <div class="gt">ℹ️ 关于</div>
+                <div class="settings-list">
+                  <div class="settings-item">
+                    <div class="ic purple">📦</div>
+                    <div class="body"><div class="t1">版本</div></div>
+                    <div class="right"><span class="v">0.1.0 (build 3)</span></div>
+                  </div>
+                  <div class="settings-item">
+                    <div class="ic cyan">⭐</div>
+                    <div class="body"><div class="t1">给个好评</div></div>
+                    <svg class="arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-3);"><polyline points="9 18 15 12 9 6"/></svg>
+                  </div>
+                  <div class="settings-item">
+                    <div class="ic coral">🔒</div>
+                    <div class="body"><div class="t1">隐私政策</div></div>
+                    <svg class="arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-3);"><polyline points="9 18 15 12 9 6"/></svg>
+                  </div>
+                  <div class="settings-item">
+                    <div class="ic yellow">📄</div>
+                    <div class="body"><div class="t1">开源协议</div></div>
+                    <svg class="arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-3);"><polyline points="9 18 15 12 9 6"/></svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="gesture-bar"><div class="handle"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 4. 调试 ============ -->
+    <div data-screen="debug">
+      <div class="caption"><b>④ 调试工具</b> · 无障碍节点 dump</div>
+      <div class="phone">
+        <div class="screen">
+          <div class="status-bar">
+            <span>9:41</span>
+            <span class="right">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 17h2v3H2zm4-3h2v6H6zm4-3h2v9h-2zm4-3h2v12h-2zm4-3h2v15h-2z"/></svg>
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3a4.237 4.237 0 0 0-6 0zm-4-4l2 2a7.07 7.07 0 0 1 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4z"/></svg>
+            </span>
+          </div>
+          <div class="app">
+            <div class="top-bar">
+              <div class="left">
+                <button class="back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
+                <div class="title">界面调试</div>
+              </div>
+              <button class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+            </div>
+            <div class="scroll">
+              <!-- 状态信息 -->
+              <div class="pill" style="margin-bottom:12px;">
+                <div class="dot"></div>
+                <div class="t"><b>无障碍服务运行中</b> · 已监听 3 个 App</div>
+              </div>
+
+              <!-- 统计 -->
+              <div class="debug-stats">
+                <div class="stat"><div class="v">128</div><div class="l">NODES</div></div>
+                <div class="stat"><div class="v">3</div><div class="l">APPS</div></div>
+                <div class="stat"><div class="v">2.4s</div><div class="l">DUMP</div></div>
+              </div>
+
+              <!-- 工具栏 -->
+              <div class="debug-toolbar">
+                <div class="chip-btn coral">⏸ 暂停</div>
+                <div class="chip-btn cyan">⟳ 刷新</div>
+                <div class="chip-btn">⧉ 复制</div>
+                <div class="chip-btn">⤓ 导出</div>
+              </div>
+
+              <!-- 日志区 -->
+              <div class="debug-log">
+                <span class="ln ln-info">[INFO ] dump started · 2026-09-04 10:23:18</span>
+                <span class="ln"><span class="tag-key">"package"</span>: <span class="tag-str">"com.jingdong.app.mall"</span>,</span>
+                <span class="ln"><span class="tag-key">"activity"</span>: <span class="tag-str">"MainFrameActivity"</span>,</span>
+                <span class="ln"><span class="tag-key">"timestamp"</span>: <span class="tag-num">1725412998</span>,</span>
+                <span class="ln"><span class="tag-key">"nodes"</span>: [</span>
+                <span class="ln">  &#123;</span>
+                <span class="ln">    <span class="tag-key">"class"</span>: <span class="tag-str">"android.widget.TextView"</span>,</span>
+                <span class="ln">    <span class="tag-key">"text"</span>: <span class="tag-str">"¥18.00"</span>,</span>
+                <span class="ln">    <span class="tag-key">"resId"</span>: <span class="tag-str">"com.jingdong:id/price"</span>,</span>
+                <span class="ln">    <span class="tag-key">"bounds"</span>: [120, 480, 320, 540],</span>
+                <span class="ln">    <span class="tag-key">"clickable"</span>: <span class="tag-num">true</span></span>
+                <span class="ln">  &#125;,</span>
+                <span class="ln">  &#123;</span>
+                <span class="ln">    <span class="tag-key">"class"</span>: <span class="tag-str">"android.widget.TextView"</span>,</span>
+                <span class="ln">    <span class="tag-key">"text"</span>: <span class="tag-str">"¥15.00"</span>,</span>
+                <span class="ln">    <span class="tag-key">"resId"</span>: <span class="tag-str">"com.sankuai.meituan:id/price"</span>,</span>
+                <span class="ln ln-warn">[WARN ] ignored node: <span class="tag-str">"webview"</span> · timeout 800ms</span>
+                <span class="ln ln-err">[ERROR] <span class="tag-arr">meituan.kepler</span> · null pointer @ ProductCard</span>
+                <span class="ln ln-info">[INFO ] dump finished · 128 nodes · 2.4s</span>
+              </div>
+            </div>
+            <div class="sticky-bottom" style="display:flex; gap:8px;">
+              <button class="btn btn-outline" style="flex:1; height:48px;">清空</button>
+              <button class="btn btn-primary" style="flex:1.5;">导出 JSON</button>
+            </div>
+            <div class="gesture-bar"><div class="handle"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer-note">
+    v2 霓虹玻璃版 · 顶部 Tab 切换单屏查看 · 双击 <b>tea-price-compare-mock.html</b> 浏览器打开
+  </div>
+
+</div>
+
+<script>
+  // Tab 过滤
+  const tabs = document.querySelectorAll('.tab');
+  const screens = document.querySelectorAll('[data-screen]');
+  tabs.forEach(t => {
+    t.addEventListener('click', () => {
+      tabs.forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      const f = t.dataset.filter;
+      screens.forEach(s => {
+        s.style.display = (f === 'all' || s.dataset.screen === f) ? '' : 'none';
+      });
+    });
+  });
+</script>
+</body>
+</html>

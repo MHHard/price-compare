@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/rootView"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_page"
+    android:fitsSystemWindows="false">
+
+    <FrameLayout
+        android:id="@+id/topBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/top_bar_height"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="@dimen/space_2">
+
+            <ImageButton
+                android:id="@+id/backButton"
+                android:layout_width="@dimen/icon_btn_size"
+                android:layout_height="@dimen/icon_btn_size"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/content_desc_back"
+                android:src="@drawable/ic_back"
+                app:tint="@color/text_primary" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/space_2"
+                android:layout_weight="1"
+                android:fontFamily="sans-serif-medium"
+                android:text="界面调试"
+                android:textAppearance="@style/TextAppearance.Tea.Title" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/scrollView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:clipToPadding="false"
+        android:fillViewport="true"
+        android:scrollbars="none"
+        app:layout_constraintBottom_toTopOf="@id/bottomBar"
+        app:layout_constraintTop_toBottomOf="@id/topBar">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="@dimen/space_4"
+            android:paddingTop="@dimen/space_2"
+            android:paddingBottom="@dimen/space_4">
+
+            <!-- 状态条 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_segment_track"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="@dimen/space_3"
+                android:paddingVertical="8dp">
+
+                <View
+                    android:layout_width="8dp"
+                    android:layout_height="8dp"
+                    android:background="@drawable/bg_status_dot" />
+
+                <TextView
+                    android:id="@+id/serviceStatusText"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/space_2"
+                    android:layout_weight="1"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="@string/status_accessibility_off"
+                    android:textColor="@color/text_primary"
+                    android:textSize="@dimen/font_caption" />
+            </LinearLayout>
+
+            <!-- 输入区 -->
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.Tea.TextInputLayout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_3"
+                android:hint="店铺搜索词"
+                app:boxBackgroundColor="@color/bg_input">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/testKeywordEditText"
+                    style="@style/Widget.Tea.EditText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="text" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.Tea.TextInputLayout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_2"
+                android:hint="饮品名称"
+                app:boxBackgroundColor="@color/bg_input">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/testProductKeywordEditText"
+                    style="@style/Widget.Tea.EditText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="text" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- 6 个测试按钮：2x3 grid -->
+            <GridLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_3"
+                android:columnCount="2"
+                android:useDefaultMargins="false">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/testJdSearchButton"
+                    style="@style/Widget.Tea.Button.Outline"
+                    android:layout_width="0dp"
+                    android:layout_height="@dimen/button_height_small"
+                    android:layout_columnWeight="1"
+                    android:layout_marginEnd="@dimen/space_2"
+                    android:layout_marginBottom="@dimen/space_2"
+                    android:text="京东搜索"
+                    android:textSize="12sp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/testMeituanSearchButton"
+                    style="@style/Widget.Tea.Button.Outline"
+                    android:layout_width="0dp"
+                    android:layout_height="@dimen/button_height_small"
+                    android:layout_columnWeight="1"
+                    android:layout_marginBottom="@dimen/space_2"
+                    android:text="美团搜索"
+                    android:textSize="12sp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/testMeituanStoreButton"
+                    style="@style/Widget.Tea.Button.Outline"
+                    android:layout_width="0dp"
+                    android:layout_height="@dimen/button_height_small"
+                    android:layout_columnWeight="1"
+                    android:layout_marginEnd="@dimen/space_2"
+                    android:layout_marginBottom="@dimen/space_2"
+                    android:text="美团进店"
+                    android:textSize="12sp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/testMeituanFullFlowButton"
+                    style="@style/Widget.Tea.Button.Outline"
+                    android:layout_width="0dp"
+                    android:layout_height="@dimen/button_height_small"
+                    android:layout_columnWeight="1"
+                    android:layout_marginBottom="@dimen/space_2"
+                    android:text="美团券全流程"
+                    android:textSize="12sp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/testMeituanDeliveryButton"
+                    style="@style/Widget.Tea.Button.Outline"
+                    android:layout_width="0dp"
+                    android:layout_height="@dimen/button_height_small"
+                    android:layout_columnWeight="1"
+                    android:layout_marginEnd="@dimen/space_2"
+                    android:text="美团外卖"
+                    android:textSize="12sp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/testMeituanPickupButton"
+                    style="@style/Widget.Tea.Button.Outline"
+                    android:layout_width="0dp"
+                    android:layout_height="@dimen/button_height_small"
+                    android:layout_columnWeight="1"
+                    android:text="美团自取"
+                    android:textSize="12sp" />
+            </GridLayout>
+
+            <!-- 节点 dump -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/dumpButton"
+                style="@style/Widget.Tea.Button.Outline"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/button_height_small"
+                android:layout_marginTop="@dimen/space_3"
+                android:text="抓取当前界面" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/space_1"
+                android:layout_marginTop="@dimen/space_3"
+                android:layout_marginBottom="@dimen/space_2"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.08"
+                android:text="📋 节点 dump"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_price_cell"
+                android:minHeight="220dp">
+
+                <ScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fillViewport="false">
+
+                    <TextView
+                        android:id="@+id/dumpResultText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="monospace"
+                        android:padding="@dimen/space_3"
+                        android:text="点击上面按钮开始测试，结果会出现在这里..."
+                        android:textColor="@color/text_secondary"
+                        android:textSize="11sp" />
+                </ScrollView>
+            </FrameLayout>
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <LinearLayout
+        android:id="@+id/bottomBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/bg_page"
+        android:orientation="horizontal"
+        android:paddingHorizontal="@dimen/space_4"
+        android:paddingTop="@dimen/space_2"
+        android:paddingBottom="@dimen/space_4"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/openAccessibilitySettingsButton"
+            style="@style/Widget.Tea.Button.Outline"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/button_height"
+            android:layout_weight="1"
+            android:text="去开启无障碍"
+            android:textSize="13sp" />
+
+        <com.google.android.material.button.MaterialButton
+            style="@style/Widget.Tea.Button.Primary"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/button_height"
+            android:layout_marginStart="@dimen/space_2"
+            android:layout_weight="1"
+            android:background="@drawable/bg_btn_primary"
+            android:backgroundTint="@null"
+            android:onClick="finish"
+            android:text="返回"
+            android:textSize="13sp"
+            app:backgroundTint="@null" />
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primitive: 黑色 + 霓虹 -->
+    <color name="primitive_cosmos_950">#03050D</color>
+    <color name="primitive_cosmos_900">#05060B</color>
+    <color name="primitive_cosmos_800">#0A0D1F</color>
+    <color name="primitive_cosmos_700">#0B0E1A</color>
+    <color name="primitive_cosmos_600">#11152A</color>
+
+    <!-- Primitive: 文字 -->
+    <color name="primitive_text_0">#F4F6FF</color>
+    <color name="primitive_text_1">#C5CAE0</color>
+    <color name="primitive_text_2">#8A90AC</color>
+    <color name="primitive_text_3">#5A6080</color>
+
+    <!-- Primitive: 品牌霓虹 -->
+    <color name="primitive_neon_coral">#FF4D6D</color>
+    <color name="primitive_neon_coral_2">#FF7A4D</color>
+    <color name="primitive_neon_cyan">#3DEEFF</color>
+    <color name="primitive_neon_purple">#9D5CFF</color>
+    <color name="primitive_neon_yellow">#FFD23F</color>
+    <color name="primitive_neon_green">#4DEAA8</color>
+    <color name="primitive_neon_pink">#FF5BCB</color>
+
+    <!-- Primitive: 平台色（用于 4 个平台） -->
+    <color name="platform_jd_a">#FFB020</color>
+    <color name="platform_jd_b">#FF6B6B</color>
+    <color name="platform_mt_voucher_a">#4DEAA8</color>
+    <color name="platform_mt_voucher_b">#3DEEFF</color>
+    <color name="platform_mt_delivery_a">#FF4D6D</color>
+    <color name="platform_mt_delivery_b">#FF5BCB</color>
+    <color name="platform_mt_pickup_a">#9D5CFF</color>
+    <color name="platform_mt_pickup_b">#5B8CFF</color>
+
+    <!-- Semantic: 页面与卡片 -->
+    <color name="bg_page">@color/primitive_cosmos_900</color>
+    <color name="bg_screen_top">@color/primitive_cosmos_700</color>
+    <color name="bg_card">#0F1322</color>
+    <color name="bg_card_strong">#161A2E</color>
+    <color name="bg_input">#070A14</color>
+    <color name="bg_overlay">#A6000000</color>
+    <color name="bg_log">#02030A</color>
+
+    <!-- Semantic: 描边 -->
+    <color name="stroke_subtle">#1FFFFFFE</color>
+    <color name="stroke_bright">#2EFFFFFF</color>
+
+    <!-- Semantic: 文字 -->
+    <color name="text_primary">@color/primitive_text_0</color>
+    <color name="text_secondary">@color/primitive_text_1</color>
+    <color name="text_tertiary">@color/primitive_text_2</color>
+    <color name="text_quaternary">@color/primitive_text_3</color>
+    <color name="text_on_primary">#FFFFFF</color>
+
+    <!-- Semantic: 状态 -->
+    <color name="status_online">@color/primitive_neon_green</color>
+    <color name="status_offline">@color/primitive_text_3</color>
+    <color name="status_error">@color/primitive_neon_coral</color>
+
+    <!-- Semantic: 品牌 -->
+    <color name="brand_primary">@color/primitive_neon_coral</color>
+    <color name="brand_pressed">#E8484E</color>
+    <color name="brand_soft">#26FF4D6D</color>
+
+    <!-- Semantic: 平台 -->
+    <color name="platform_jd">@color/platform_jd_a</color>
+    <color name="platform_jd_soft">#26FFB020</color>
+    <color name="platform_mt_voucher">@color/platform_mt_voucher_a</color>
+    <color name="platform_mt_voucher_soft">#264DEAA8</color>
+    <color name="platform_mt_delivery">@color/platform_mt_delivery_a</color>
+    <color name="platform_mt_delivery_soft">#26FF4D6D</color>
+    <color name="platform_mt_pickup">@color/platform_mt_pickup_a</color>
+    <color name="platform_mt_pickup_soft">#269D5CFF</color>
+</resources>

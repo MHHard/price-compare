@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="56dp"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_save_tag"
+    android:gravity="center"
+    android:minHeight="0dp"
+    android:orientation="vertical"
+    android:paddingHorizontal="@dimen/space_1"
+    android:paddingVertical="@dimen/space_1">
+
+    <TextView
+        android:id="@+id/saveAmount"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-black"
+        android:fontFeatureSettings="tnum"
+        android:textColor="@color/text_on_primary"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        tools:text="¥3" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-medium"
+        android:letterSpacing="0.1"
+        android:text="SAVE"
+        android:textColor="@color/text_on_primary"
+        android:textSize="9sp" />
+</LinearLayout>

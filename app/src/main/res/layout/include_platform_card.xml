@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="@dimen/card_gap"
+    app:cardBackgroundColor="@color/bg_card"
+    app:cardCornerRadius="@dimen/card_corner"
+    app:cardElevation="0dp"
+    app:contentPadding="0dp"
+    app:strokeColor="@color/stroke_subtle"
+    app:strokeWidth="1dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="16dp"
+        android:paddingTop="14dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="14dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <FrameLayout
+                android:id="@+id/platformLogo"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:background="@drawable/bg_logo_jd">
+
+                <TextView
+                    android:id="@+id/platformLogoText"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:text="京"
+                    android:textColor="@color/text_on_primary"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+            </FrameLayout>
+
+            <TextView
+                android:id="@+id/platformName"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/space_3"
+                android:layout_weight="1"
+                android:fontFamily="sans-serif-medium"
+                android:textAppearance="@style/TextAppearance.Tea.Title"
+                tools:text="京东" />
+
+            <TextView
+                android:id="@+id/platformBadge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_segment_track"
+                android:fontFamily="sans-serif-medium"
+                android:paddingHorizontal="@dimen/space_2"
+                android:paddingVertical="3dp"
+                android:text="已开启"
+                android:textColor="@color/text_tertiary"
+                android:textSize="10sp" />
+
+            <FrameLayout
+                android:id="@+id/toggleContainer"
+                android:layout_width="36dp"
+                android:layout_height="20dp"
+                android:layout_marginStart="@dimen/space_2"
+                android:background="@drawable/bg_toggle_on"
+                android:clickable="true"
+                android:focusable="true">
+
+                <View
+                    android:id="@+id/toggleThumb"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:layout_gravity="end|center_vertical"
+                    android:layout_marginEnd="2dp"
+                    android:background="@drawable/bg_toggle_thumb" />
+            </FrameLayout>
+        </LinearLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/storeInputLayout"
+            style="@style/Widget.Tea.TextInputLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_3"
+            android:hint="@string/label_store"
+            app:boxBackgroundColor="@color/bg_input">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/storeEditText"
+                style="@style/Widget.Tea.EditText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:imeOptions="actionNext"
+                android:inputType="text" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/productInputLayout"
+            style="@style/Widget.Tea.TextInputLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_2"
+            android:hint="@string/label_product"
+            app:boxBackgroundColor="@color/bg_input">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/productEditText"
+                style="@style/Widget.Tea.EditText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:imeOptions="actionNext"
+                android:inputType="text" />
+        </com.google.android.material.textfield.TextInputLayout>
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

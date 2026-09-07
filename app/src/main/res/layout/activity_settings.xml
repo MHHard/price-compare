@@ -1,0 +1,358 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/rootView"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_page"
+    android:fitsSystemWindows="false">
+
+    <FrameLayout
+        android:id="@+id/topBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/top_bar_height"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="@dimen/space_2">
+
+            <ImageButton
+                android:id="@+id/backButton"
+                android:layout_width="@dimen/icon_btn_size"
+                android:layout_height="@dimen/icon_btn_size"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/content_desc_back"
+                android:src="@drawable/ic_back"
+                app:tint="@color/text_primary" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/space_2"
+                android:layout_weight="1"
+                android:fontFamily="sans-serif-medium"
+                android:text="设置"
+                android:textAppearance="@style/TextAppearance.Tea.Title" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/scrollView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:clipToPadding="false"
+        android:scrollbars="none"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/topBar">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="@dimen/space_4"
+            android:paddingTop="@dimen/space_2"
+            android:paddingBottom="@dimen/space_8">
+
+            <!-- 🤖 AI 识别 -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/space_1"
+                android:layout_marginBottom="@dimen/space_2"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.12"
+                android:text="🤖  AI 识别"
+                android:textColor="@color/text_tertiary"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.Tea.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout
+                    android:id="@+id/apiKeyRow"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center_vertical"
+                    android:minHeight="@dimen/touch_min"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="@dimen/space_4"
+                    android:paddingVertical="@dimen/space_3">
+
+                    <FrameLayout
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:background="@drawable/bg_logo_mt_pickup">
+
+                        <ImageView
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:layout_gravity="center"
+                            android:src="@drawable/ic_globe"
+                            app:tint="@color/text_on_primary" />
+                    </FrameLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/space_3"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="sans-serif-medium"
+                            android:text="DeepSeek API Key"
+                            android:textColor="@color/text_primary"
+                            android:textSize="@dimen/font_body" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="仅保存在本机，不会上传"
+                            android:textColor="@color/text_tertiary"
+                            android:textSize="@dimen/font_caption" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/apiKeySummary"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="未设置"
+                        android:textColor="@color/text_tertiary"
+                        android:textSize="@dimen/font_caption" />
+
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:layout_marginStart="@dimen/space_1"
+                        android:src="@drawable/ic_chevron_right"
+                        app:tint="@color/text_tertiary" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- 🎨 通用 -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/space_1"
+                android:layout_marginTop="@dimen/space_5"
+                android:layout_marginBottom="@dimen/space_2"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.12"
+                android:text="🎨  通用"
+                android:textColor="@color/text_tertiary"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.Tea.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="@dimen/space_4">
+
+                    <!-- 暗色模式 segmented -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:fontFamily="sans-serif-medium"
+                            android:text="暗色模式"
+                            android:textColor="@color/text_primary"
+                            android:textSize="@dimen/font_body" />
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/bg_segment_track"
+                            android:orientation="horizontal"
+                            android:padding="3dp">
+
+                            <TextView
+                                android:id="@+id/segSystem"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="sans-serif-medium"
+                                android:paddingHorizontal="14dp"
+                                android:paddingVertical="5dp"
+                                android:text="系统"
+                                android:textColor="@color/text_tertiary"
+                                android:textSize="11sp" />
+
+                            <TextView
+                                android:id="@+id/segDark"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:background="@drawable/bg_segment_on"
+                                android:fontFamily="sans-serif-medium"
+                                android:paddingHorizontal="14dp"
+                                android:paddingVertical="5dp"
+                                android:text="深色"
+                                android:textColor="@color/text_on_primary"
+                                android:textSize="11sp" />
+
+                            <TextView
+                                android:id="@+id/segLight"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="sans-serif-medium"
+                                android:paddingHorizontal="14dp"
+                                android:paddingVertical="5dp"
+                                android:text="浅色"
+                                android:textColor="@color/text_tertiary"
+                                android:textSize="11sp" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginVertical="@dimen/space_3"
+                        android:background="@color/stroke_subtle" />
+
+                    <!-- 通知 toggle -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:fontFamily="sans-serif-medium"
+                            android:text="比价完成通知"
+                            android:textColor="@color/text_primary"
+                            android:textSize="@dimen/font_body" />
+
+                        <FrameLayout
+                            android:id="@+id/toggleNotify"
+                            android:layout_width="40dp"
+                            android:layout_height="22dp"
+                            android:background="@drawable/bg_toggle_on">
+
+                            <View
+                                android:layout_width="18dp"
+                                android:layout_height="18dp"
+                                android:layout_gravity="end|center_vertical"
+                                android:layout_marginEnd="2dp"
+                                android:background="@drawable/bg_toggle_thumb" />
+                        </FrameLayout>
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ℹ️ 关于 -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/space_1"
+                android:layout_marginTop="@dimen/space_5"
+                android:layout_marginBottom="@dimen/space_2"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.12"
+                android:text="ℹ️  关于"
+                android:textColor="@color/text_tertiary"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.Tea.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:minHeight="@dimen/touch_min"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="@dimen/space_4"
+                        android:paddingVertical="@dimen/space_3">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:fontFamily="sans-serif-medium"
+                            android:text="版本"
+                            android:textColor="@color/text_primary"
+                            android:textSize="@dimen/font_body" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="0.1.0 (build 3)"
+                            android:textColor="@color/text_tertiary"
+                            android:textSize="@dimen/font_caption" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginStart="@dimen/space_4"
+                        android:background="@color/stroke_subtle" />
+
+                    <LinearLayout
+                        android:id="@+id/privacyRow"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:minHeight="@dimen/touch_min"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="@dimen/space_4"
+                        android:paddingVertical="@dimen/space_3">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:fontFamily="sans-serif-medium"
+                            android:text="隐私政策"
+                            android:textColor="@color/text_primary"
+                            android:textSize="@dimen/font_body" />
+
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:src="@drawable/ic_chevron_right"
+                            app:tint="@color/text_tertiary" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
