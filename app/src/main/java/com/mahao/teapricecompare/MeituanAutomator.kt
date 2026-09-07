@@ -106,16 +106,8 @@ class MeituanAutomator(
         if (!opened.isSuccess) {
             return unavailableStoreComparison(storeName, null, opened.error ?: "进入店铺失败")
         }
-        val clearResult = clearCurrentStoreCart()
-        if (!clearResult.isSuccess) {
-            return unavailableStoreComparison(
-                storeName,
-                null,
-                clearResult.reason ?: "当前店内待付款购物车清空失败",
-            )
-        }
         val distance = readMerchantDistance()
-        val addResult = addProductToCart(target.productKeyword)
+        val addResult = addTargetAndResetStoreCart(target.productKeyword)
         if (!addResult.isSuccess) {
             return unavailableStoreComparison(storeName, distance, addResult.error ?: "商品加入购物车失败")
         }
@@ -196,16 +188,7 @@ class MeituanAutomator(
         if (!openResult.isSuccess) return PriceResult(resultPlatform, error = openResult.error)
         val merchantDistance = if (route != MeituanRoute.VOUCHER) readMerchantDistance() else null
 
-        val clearResult = clearCurrentStoreCart()
-        if (!clearResult.isSuccess) {
-            return PriceResult(
-                resultPlatform,
-                error = clearResult.reason ?: "当前店内待付款购物车清空失败",
-                merchantDistance = merchantDistance,
-            )
-        }
-
-        val addResult = addProductToCart(target.productKeyword)
+        val addResult = addTargetAndResetStoreCart(target.productKeyword)
         if (!addResult.isSuccess) {
             return PriceResult(resultPlatform, error = addResult.error)
         }
@@ -259,6 +242,34 @@ class MeituanAutomator(
     }
 
     suspend fun clearCurrentStoreCart(): CartClearResult = MeituanCartController().clearCart()
+
+    /**
+     * Meituan only exposes the store cart drawer after a product has been selected. Select once
+     * to reveal that drawer, clear its rows with the accessibility minus controls, close it, and
+     * select the target again for the actual comparison. If selection fails, no drawer cleanup is
+     * attempted and the original product error continues through the normal flow.
+     */
+    private suspend fun addTargetAndResetStoreCart(productKeyword: String): MeituanStepResult {
+        val initialAdd = addProductToCart(productKeyword)
+        if (!initialAdd.isSuccess || route == MeituanRoute.VOUCHER) return initialAdd
+
+        val clearResult = clearCurrentStoreCart()
+        if (!clearResult.isSuccess) {
+            return MeituanStepResult.failure(
+                clearResult.reason ?: "当前店内待付款购物车清空失败",
+            )
+        }
+        closeCartDrawerIfOpen()
+
+        val finalAdd = addProductToCart(productKeyword)
+        return if (finalAdd.isSuccess) {
+            finalAdd
+        } else {
+            MeituanStepResult.failure(
+                "店内待付款购物车清空后重新加入「$productKeyword」失败：${finalAdd.error ?: "未知原因"}",
+            )
+        }
+    }
 
     private suspend fun findProductNodeDeterministic(
         productKeyword: String,

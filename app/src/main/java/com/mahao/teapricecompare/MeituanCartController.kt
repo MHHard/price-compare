@@ -1,5 +1,6 @@
 package com.mahao.teapricecompare
 
+import android.graphics.Rect
 import android.view.accessibility.AccessibilityNodeInfo
 import kotlinx.coroutines.delay
 
@@ -129,14 +130,16 @@ private object TeaAccessibilityAdapter : MeituanCartAccessibility {
     override fun openCart(): Boolean {
         val root = TeaAccessibilityService.currentRoot() ?: return false
         val currentObservation = readCart(root)
-        val hasCartMarker = findNode(root) { node ->
-            MeituanSelectors.isCartDrawerMarker(node.text?.toString(), node.contentDescription?.toString()) ||
-                MeituanSelectors.isCartClearAction(node.text?.toString(), node.contentDescription?.toString())
+        val hasDrawerHeader = findNode(root) { node ->
+            MeituanSelectors.isCartDrawerMarker(node.text?.toString(), node.contentDescription?.toString())
+        } != null
+        val hasClearAction = findNode(root) { node ->
+            MeituanSelectors.isCartClearAction(node.text?.toString(), node.contentDescription?.toString())
         } != null
         val hasCartTitle = findNode(root) { node ->
             node.text?.toString()?.contains("购物车") == true
         } != null
-        if (hasCartMarker || currentObservation.rows.isNotEmpty() ||
+        if ((hasDrawerHeader && (hasClearAction || currentObservation.rows.isNotEmpty())) ||
             (currentObservation.hasEmptyMarker && hasCartTitle)
         ) {
             return true
@@ -147,8 +150,13 @@ private object TeaAccessibilityAdapter : MeituanCartAccessibility {
                 node.contentDescription?.toString(),
                 node.viewIdResourceName,
             )
-        } ?: return false
-        return clickNodeAction(marker)
+        }
+        if (marker != null && TeaAccessibilityService.click(marker)) return true
+
+        // After the first product is selected, some Meituan builds expose only the collapsed
+        // bottom summary and omit a semantic cart node. This is the store-page cart entry, not
+        // the Meituan home/global cart; clearCart() is called only after a product was selected.
+        return TeaAccessibilityService.tap(CART_ENTRY_X, CART_ENTRY_Y)
     }
 
     override fun readCart(): CartObservation? =
@@ -156,7 +164,7 @@ private object TeaAccessibilityAdapter : MeituanCartAccessibility {
 
     override fun clickMinus(row: CartItemRow): Boolean {
         val root = TeaAccessibilityService.currentRoot() ?: return false
-        val matchingRows = findNodeRows(root).filter {
+        val matchingRows = findNodeRows(root, findCurrentStoreName(root)).filter {
             it.storeName == row.storeName && it.productName == row.productName
         }
         if (matchingRows.size != 1) return false
@@ -164,7 +172,7 @@ private object TeaAccessibilityAdapter : MeituanCartAccessibility {
     }
 
     private fun readCart(root: AccessibilityNodeInfo): CartObservation {
-        val nodeRows = findNodeRows(root)
+        val nodeRows = findNodeRows(root, findCurrentStoreName(root))
         val minusNodes = mutableListOf<AccessibilityNodeInfo>()
         collectNodes(root) { node ->
             if (isMinus(node)) minusNodes += node
@@ -190,31 +198,31 @@ private object TeaAccessibilityAdapter : MeituanCartAccessibility {
         return CartObservation(hasEmptyMarker, rows, unknownRowCount)
     }
 
-    private fun findNodeRows(root: AccessibilityNodeInfo): List<NodeCartRow> {
+    private fun findNodeRows(root: AccessibilityNodeInfo, fallbackStoreName: String? = null): List<NodeCartRow> {
         val rows = mutableListOf<NodeCartRow>()
         collectNodes(root) { node ->
-            if (isMinus(node)) findCartRow(node)?.let(rows::add)
+            if (isMinus(node)) findCartRow(node, fallbackStoreName)?.let(rows::add)
         }
         return rows
     }
 
-    private fun findCartRow(minusNode: AccessibilityNodeInfo): NodeCartRow? {
+    private fun findCartRow(minusNode: AccessibilityNodeInfo, fallbackStoreName: String?): NodeCartRow? {
         var container = minusNode.parent
         var depth = 0
         while (container != null && depth++ < MAX_ANCESTOR_DEPTH) {
             val texts = collectText(container)
             val stores = texts.filter(MeituanSelectors::isCartStoreNameCandidate).distinct()
             val quantities = texts.filter(MeituanSelectors::isCartQuantityText).distinct()
-            val storeName = stores.singleOrNull()
+            val storeName = stores.singleOrNull() ?: fallbackStoreName
             val productNames = texts.filter { text ->
                 MeituanSelectors.isCartProductNameCandidate(text, storeName)
             }.distinct()
             val minusCount = countNodes(container, ::isMinus)
             val productName = productNames.singleOrNull()
-            val quantityText = quantities.singleOrNull()
+            val quantity = findCartQuantity(container, minusNode, quantities)
             if (minusCount == 1 && MeituanSelectors.isCartProductRow(
                     productName,
-                    quantityText,
+                    quantity.toString(),
                     hasMinusControl = true,
                     storeName = storeName,
                 )
@@ -222,13 +230,74 @@ private object TeaAccessibilityAdapter : MeituanCartAccessibility {
                 return NodeCartRow(
                     storeName = storeName!!,
                     productName = productName!!,
-                    quantity = MeituanSelectors.parseCartQuantity(quantityText),
+                    quantity = quantity,
                     minusNode = minusNode,
                 )
             }
             container = container.parent
         }
         return null
+    }
+
+    private fun findCartQuantity(
+        container: AccessibilityNodeInfo,
+        minusNode: AccessibilityNodeInfo,
+        textQuantities: List<String>,
+    ): Int {
+        var describedQuantity = 0
+        collectNodes(container) { node ->
+            describedQuantity = maxOf(
+                describedQuantity,
+                MeituanSelectors.parseCartQuantity(node.contentDescription?.toString()),
+            )
+        }
+        if (describedQuantity > 0) return describedQuantity
+
+        val minusBounds = Rect().also { minusNode.getBoundsInScreen(it) }
+        return collectNodesWithBounds(container)
+            .mapNotNull { (node, bounds) ->
+                val quantity = MeituanSelectors.parseCartQuantity(node.text?.toString())
+                if (quantity <= 0 || bounds.centerX() <= minusBounds.centerX() ||
+                    kotlin.math.abs(bounds.centerY() - minusBounds.centerY()) > 80
+                ) {
+                    null
+                } else {
+                    quantity to kotlin.math.abs(bounds.centerX() - minusBounds.centerX())
+                }
+            }
+            .minByOrNull { it.second }
+            ?.first
+            ?: textQuantities.firstOrNull()?.let(MeituanSelectors::parseCartQuantity)
+            ?: 0
+    }
+
+    private fun findCurrentStoreName(root: AccessibilityNodeInfo): String? {
+        val candidates = mutableListOf<String>()
+        collectNodes(root) { node ->
+            val text = node.text?.toString()?.trim().orEmpty()
+            val bounds = Rect().also { node.getBoundsInScreen(it) }
+            if (text.length >= 5 &&
+                bounds.top in 600..1100 &&
+                bounds.width() >= 250 &&
+                MeituanSelectors.isCartStoreNameCandidate(text)
+            ) {
+                candidates += text
+            }
+        }
+        return candidates.distinct().maxByOrNull { text ->
+            val titleShape = if (text.contains('(') || text.contains('（')) 10_000 else 0
+            titleShape + text.length
+        }
+    }
+
+    private fun collectNodesWithBounds(
+        node: AccessibilityNodeInfo,
+    ): List<Pair<AccessibilityNodeInfo, Rect>> {
+        val nodes = mutableListOf<Pair<AccessibilityNodeInfo, Rect>>()
+        collectNodes(node) { current ->
+            nodes += current to Rect().also { current.getBoundsInScreen(it) }
+        }
+        return nodes
     }
 
     private fun isMinus(node: AccessibilityNodeInfo): Boolean =
@@ -271,6 +340,8 @@ private object TeaAccessibilityAdapter : MeituanCartAccessibility {
     }
 
     private const val MAX_ANCESTOR_DEPTH = 3
+    private const val CART_ENTRY_X = 100
+    private const val CART_ENTRY_Y = 2260
 
     private fun clickNodeAction(node: AccessibilityNodeInfo): Boolean {
         var target: AccessibilityNodeInfo? = node

@@ -226,7 +226,10 @@ object MeituanSelectors {
         }
 
     fun isCartClearAction(text: String?, contentDescription: String?): Boolean =
-        text == "清空购物车" || contentDescription == "清空购物车"
+        text == "清空" ||
+            contentDescription == "清空" ||
+            text == "清空购物车" ||
+            contentDescription == "清空购物车"
 
     fun isCartMinusControl(text: String?, contentDescription: String?, resourceId: String?): Boolean =
         text == "减" ||
@@ -256,7 +259,14 @@ object MeituanSelectors {
     }
 
     fun parseCartQuantity(text: String?): Int {
-        val normalized = text?.trim()?.removePrefix("x")?.removePrefix("×") ?: return 0
+        val value = text?.trim() ?: return 0
+        val addedCount = Regex("已添加\\s*(\\d+)\\s*份").find(value)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.toIntOrNull()
+        if (addedCount != null) return addedCount.coerceAtLeast(0)
+
+        val normalized = value.removePrefix("x").removePrefix("×")
         return normalized.toIntOrNull()?.takeIf { it >= 0 } ?: 0
     }
 
@@ -269,6 +279,13 @@ object MeituanSelectors {
         if (isEmptyCartMarker(value, null) || isCartClearAction(value, null)) return false
         if (value in CART_ENTRY_LABELS || value == "去结算" || value == "明细") return false
         if (value == "减" || value.contains("减少") || value.contains("删除")) return false
+        if (value.matches(Regex("[0-9.￥¥元]+"))) return false
+        if (value in CART_SPEC_LABELS ||
+            value.startsWith("装入口袋") ||
+            value.startsWith("选用后") ||
+            value.contains("打包费") ||
+            value == "优惠后"
+        ) return false
         return true
     }
 
@@ -299,6 +316,18 @@ object MeituanSelectors {
 
     private fun hasId(node: AccessibilityNodeInfo, suffix: String): Boolean =
         node.viewIdResourceName?.endsWith(suffix) == true
+
+    private val CART_SPEC_LABELS = setOf(
+        "标准",
+        "少冰",
+        "正常冰",
+        "常温",
+        "七分糖(推荐)",
+        "正常糖",
+        "五分糖",
+        "三分糖",
+        "不额外加糖",
+    )
 
     private fun parseMinimumOrder(text: String): Double? {
         val afterLabel = Regex("(?:起送价|起送)\\s*[¥￥]?\\s*([0-9]+(?:\\.[0-9]{1,2})?)")

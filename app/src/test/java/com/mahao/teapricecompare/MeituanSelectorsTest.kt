@@ -218,6 +218,21 @@ class MeituanSelectorsTest {
     }
 
     @Test
+    fun cartProductNameExcludesSelectedSpecAndCartMetadata() {
+        assertTrue(MeituanSelectors.isCartProductNameCandidate("雪王大圣代(奥利奥饼干风味)", "蜜雪冰城(川图路店)"))
+        assertFalse(MeituanSelectors.isCartProductNameCandidate("标准", "蜜雪冰城(川图路店)"))
+        assertFalse(MeituanSelectors.isCartProductNameCandidate("已添加1份", "蜜雪冰城(川图路店)"))
+        assertFalse(MeituanSelectors.isCartProductNameCandidate("另需打包费￥0.6", "蜜雪冰城(川图路店)"))
+        assertFalse(MeituanSelectors.isCartProductNameCandidate("¥", "蜜雪冰城(川图路店)"))
+    }
+
+    @Test
+    fun cartQuantityParserReadsAddedCountDescription() {
+        assertEquals(1, MeituanSelectors.parseCartQuantity("已添加1份"))
+        assertEquals(2, MeituanSelectors.parseCartQuantity("已添加 2 份"))
+    }
+
+    @Test
     fun emptyCartMarkersAreRecognizedButOrdinaryCartTextIsNot() {
         assertTrue(MeituanSelectors.isEmptyCartMarker("购物车是空的", null))
         assertTrue(MeituanSelectors.isEmptyCartMarker(null, "暂无商品"))
@@ -230,6 +245,12 @@ class MeituanSelectorsTest {
         assertTrue(MeituanSelectors.isCartMinusControl(null, "减少商品", null))
         assertTrue(MeituanSelectors.isCartMinusControl(null, null, "com.sankuai.meituan:id/minus"))
         assertFalse(MeituanSelectors.isCartMinusControl("删除", null, null))
+    }
+
+    @Test
+    fun cartClearActionRecognizesTheStoreDrawerLabel() {
+        assertTrue(MeituanSelectors.isCartClearAction("清空", null))
+        assertTrue(MeituanSelectors.isCartClearAction(null, "清空"))
     }
 
     @Test
