@@ -49,7 +49,18 @@ class FavoriteOrderAdapter(
         // 首页不伪造价格：真实价格只有跑完美团流程后才有来源。
         holder.priceRow.removeAllViews()
         TextView(ctx).apply {
-            text = "买券  ·  外卖  ·  自取   尚未查价"
+            val snapshot = order.lastComparison
+            text = when {
+                snapshot == null -> "买券  ·  外卖  ·  自取   尚未查价"
+                snapshot.stores.any { it.availableModes.isNotEmpty() } -> {
+                    val (store, mode) = snapshot.stores
+                        .mapNotNull { item -> item.cheapest?.let { item to it } }
+                        .minByOrNull { it.second.price!! }
+                        ?: return@apply
+                    "最近：${mode.mode.displayName()} ¥${"%.2f".format(mode.price!!)} · ${store.storeName}"
+                }
+                else -> "上次未获取到可验证价格"
+            }
             setTextColor(ctx.getColor(R.color.text_tertiary))
             textSize = 12f
             holder.priceRow.addView(this)
@@ -66,6 +77,12 @@ class FavoriteOrderAdapter(
         this[Platform.MEITUAN_DELIVERY]
             ?: this[Platform.MEITUAN]
             ?: this[Platform.MEITUAN_PICKUP]
+
+    private fun MeituanRoute.displayName(): String = when (this) {
+        MeituanRoute.VOUCHER -> "买券"
+        MeituanRoute.DELIVERY -> "外卖"
+        MeituanRoute.PICKUP -> "自取"
+    }
 
     object DiffCallback : DiffUtil.ItemCallback<FavoriteOrder>() {
         override fun areItemsTheSame(old: FavoriteOrder, new: FavoriteOrder) = old.id == new.id

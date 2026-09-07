@@ -234,6 +234,7 @@ class AgentRecoveryPlanner(
 
     suspend fun decide(observation: AutomationObservation): RecoveryDecision {
         if (queryBudget != null && !queryBudget.canStartRecovery()) {
+            queryBudget.markRejected()
             return RecoveryDecision.stop("已达到本次查询的 Agent 预算限制", observation.stage.name)
         }
         val result = client.complete(

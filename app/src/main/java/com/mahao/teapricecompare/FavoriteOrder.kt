@@ -11,4 +11,5 @@ data class FavoriteOrder(
     val id: String,
     val name: String,
     val targets: Map<Platform, PlatformTarget>,
+    val lastComparison: ComparisonSnapshot? = null,
 )

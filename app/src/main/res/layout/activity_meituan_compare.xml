@@ -99,6 +99,15 @@
                 android:textColor="@color/text_secondary"
                 android:textIsSelectable="true"
                 android:textSize="14sp" />
+            <TextView
+                android:id="@+id/compareUsageText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/space_2"
+                android:background="@drawable/bg_price_cell"
+                android:padding="@dimen/card_padding"
+                android:textColor="@color/text_tertiary"
+                android:textSize="12sp" />
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 </androidx.constraintlayout.widget.ConstraintLayout>

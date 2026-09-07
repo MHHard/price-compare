@@ -46,7 +46,9 @@ class MainActivity : AppCompatActivity() {
                 Snackbar.make(window.decorView, "已删除「${order.name}」", Snackbar.LENGTH_SHORT).show()
             },
             onCompare = { order ->
-                order.targets.meituanTarget()?.let(::openMeituanCompare)
+                order.targets.meituanTarget()?.let { target ->
+                    openMeituanCompare(target, order.id)
+                }
                     ?: showMissingMeituanTarget(order)
             },
         )
@@ -130,7 +132,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun openMeituanCompare(target: PlatformTarget) {
+    private fun openMeituanCompare(target: PlatformTarget, orderId: String? = null) {
         if (!cartController.canCompare) {
             Snackbar.make(
                 window.decorView,
@@ -139,11 +141,11 @@ class MainActivity : AppCompatActivity() {
             ).show()
             return
         }
-        startActivity(
-            Intent(this, MeituanCompareActivity::class.java)
-                .putExtra(MeituanCompareActivity.EXTRA_STORE_KEYWORD, target.storeKeyword)
-                .putExtra(MeituanCompareActivity.EXTRA_PRODUCT_KEYWORD, target.productKeyword),
-        )
+        val intent = Intent(this, MeituanCompareActivity::class.java)
+            .putExtra(MeituanCompareActivity.EXTRA_STORE_KEYWORD, target.storeKeyword)
+            .putExtra(MeituanCompareActivity.EXTRA_PRODUCT_KEYWORD, target.productKeyword)
+        orderId?.let { intent.putExtra(MeituanCompareActivity.EXTRA_ORDER_ID, it) }
+        startActivity(intent)
     }
 
     private fun showMissingMeituanTarget(order: FavoriteOrder) {

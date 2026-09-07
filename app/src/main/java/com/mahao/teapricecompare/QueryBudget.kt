@@ -44,7 +44,10 @@ class QueryBudget {
         estimatedCostUsd: Double = 0.0,
         requiresRecoveryStep: Boolean = false,
     ): QueryBudgetReservation? {
-        if (!canStart(estimatedTokens, estimatedCostUsd, requiresRecoveryStep)) return null
+        if (!canStart(estimatedTokens, estimatedCostUsd, requiresRecoveryStep)) {
+            budgetRejected = true
+            return null
+        }
         val tokens = estimatedTokens.coerceAtLeast(0)
         val cost = estimatedCostUsd.takeIf { it.isFinite() && it >= 0.0 } ?: return null
         inFlightCalls += 1
@@ -89,9 +92,17 @@ class QueryBudget {
 
     @Synchronized
     fun recordRecoveryStep(): Boolean {
-        if (recoveryStepsUsed + inFlightRecoverySteps >= maxRecoverySteps) return false
+        if (recoveryStepsUsed + inFlightRecoverySteps >= maxRecoverySteps) {
+            budgetRejected = true
+            return false
+        }
         recoveryStepsUsed += 1
         return true
+    }
+
+    @Synchronized
+    fun markRejected() {
+        budgetRejected = true
     }
 
     @Synchronized
@@ -107,12 +118,14 @@ class QueryBudget {
     fun isExhausted(): Boolean = callsUsed >= maxCalls ||
         totalTokensUsed >= maxTotalTokens ||
         costUsdUsed >= maxCostUsd ||
-        recoveryStepsUsed >= maxRecoverySteps
+        recoveryStepsUsed >= maxRecoverySteps ||
+        budgetRejected
 
     private var inFlightCalls = 0
     private var inFlightTokens = 0L
     private var inFlightCostUsd = 0.0
     private var inFlightRecoverySteps = 0
+    private var budgetRejected = false
 
     companion object {
         const val MAX_CALLS = 6

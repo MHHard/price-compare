@@ -148,7 +148,14 @@ class FavoriteOrderEditActivity : AppCompatActivity() {
         if (id == null) {
             store.add(name, targets)
         } else {
-            store.update(FavoriteOrder(id = id, name = name, targets = targets))
+            store.update(
+                FavoriteOrder(
+                    id = id,
+                    name = name,
+                    targets = targets,
+                    lastComparison = store.get(id)?.lastComparison,
+                ),
+            )
         }
         finish()
     }

@@ -71,3 +71,22 @@ fun priceResultToMeituanStoreComparison(
         pickup = pickup,
     )
 }
+
+fun MeituanComparisonResult.toSnapshot(target: PlatformTarget): ComparisonSnapshot {
+    val derived = ComparisonResultState.from(stores, budgetExceeded)
+    val status = when {
+        budgetExceeded -> ComparisonStatus.BUDGET_EXCEEDED
+        error != null && cheapest == null -> ComparisonStatus.FAILED
+        error != null -> ComparisonStatus.PARTIAL
+        else -> derived.status
+    }
+    return ComparisonSnapshot(
+        queryId = queryId ?: "unknown",
+        target = target,
+        stores = stores,
+        status = status,
+        usageSummary = usageSummary,
+        cartNotice = "查价结束后美团购物车保持本次查询内容，不会自动恢复。",
+        failureReason = error,
+    )
+}

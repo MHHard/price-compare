@@ -77,4 +77,66 @@ class MeituanMvpFlowTest {
         assertTrue(flags and Intent.FLAG_ACTIVITY_CLEAR_TOP != 0)
         assertTrue(flags and Intent.FLAG_ACTIVITY_SINGLE_TOP != 0)
     }
+
+    @Test
+    fun comparisonResultBecomesARecentSnapshotWithUsageAndCartNotice() {
+        val result = MeituanComparisonResult(
+            stores = listOf(
+                MeituanStoreComparison(
+                    storeName = "喜茶人民广场店",
+                    delivery = MeituanModePrice(MeituanRoute.DELIVERY, price = 12.0),
+                ),
+            ),
+            queryId = "query-1",
+            usageSummary = UsageSummary(agentCalls = 2, totalTokens = 320, costUsd = 0.001, costCny = 0.0072),
+        )
+
+        val snapshot = result.toSnapshot(PlatformTarget("喜茶", "芝芝莓莓"))
+
+        assertEquals(ComparisonStatus.SUCCESS, snapshot.status)
+        assertEquals("query-1", snapshot.queryId)
+        assertEquals(0.001, snapshot.usageSummary.costUsd)
+        assertTrue(snapshot.cartNotice?.contains("不会自动恢复") == true)
+    }
+
+    @Test
+    fun failedResultDoesNotBecomeASuccessSnapshot() {
+        val snapshot = MeituanComparisonResult(
+            error = "没有找到价格",
+            queryId = "query-2",
+        ).toSnapshot(PlatformTarget("喜茶", "芝芝莓莓"))
+
+        assertEquals(ComparisonStatus.FAILED, snapshot.status)
+        assertEquals(null, ComparisonResultState.from(snapshot.stores, false).cheapest)
+    }
+
+    @Test
+    fun snapshotCodecKeepsPricesConstraintsAndUsage() {
+        val snapshot = ComparisonSnapshot(
+            queryId = "query-codec",
+            target = PlatformTarget("喜茶", "芝芝莓莓"),
+            stores = listOf(
+                MeituanStoreComparison(
+                    storeName = "喜茶人民广场店",
+                    delivery = MeituanModePrice(
+                        mode = MeituanRoute.DELIVERY,
+                        price = 18.5,
+                        candidates = listOf(ProductCandidate("椰果", 2.0, isAddable = true)),
+                        orderConstraints = OrderConstraints(
+                            subtotal = 18.5,
+                            minimumOrder = 18.0,
+                            isOrderable = true,
+                        ),
+                    ),
+                ),
+            ),
+            status = ComparisonStatus.SUCCESS,
+            usageSummary = UsageSummary(agentCalls = 1, totalTokens = 120, costUsd = 0.001, costCny = 0.0072),
+            cartNotice = "不会自动恢复",
+        )
+
+        val decoded = ComparisonSnapshotCodec.fromJson(ComparisonSnapshotCodec.toJson(snapshot))
+
+        assertEquals(snapshot, decoded)
+    }
 }
