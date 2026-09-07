@@ -3,6 +3,7 @@ package com.mahao.teapricecompare
 import org.json.JSONObject
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -34,7 +35,7 @@ class QueryBudgetTest {
     }
 
     @Test
-    fun recoveryStepsHaveTheirOwnBound() {
+    fun exhaustedRecoveryBudgetDoesNotBlockOrdinaryCalls() {
         val budget = QueryBudget()
 
         repeat(QueryBudget.MAX_RECOVERY_STEPS) {
@@ -42,7 +43,17 @@ class QueryBudgetTest {
         }
 
         assertFalse(budget.recordRecoveryStep())
-        assertFalse(budget.canStart())
+        assertTrue(budget.canStart())
+        assertFalse(budget.canStartRecovery())
+    }
+
+    @Test
+    fun recoveryBudgetCanBeCheckedAlongsideCallBudgets() {
+        val budget = QueryBudget()
+
+        assertTrue(budget.canStartRecovery(estimatedTokens = 100, estimatedCostUsd = 0.001))
+        budget.recordRecoveryStep()
+        assertTrue(budget.canStartRecovery(estimatedTokens = 100, estimatedCostUsd = 0.001))
     }
 
     @Test
@@ -140,11 +151,25 @@ class QueryBudgetTest {
             """{"id":"chatcmpl-no-usage","model":"deepseek-v4-flash","choices":[{"message":{"content":"42"}}]}""",
             responseCode = 200,
         )
-        val estimate = client.estimatedUsage("system", "user", maxTokens = 32)
+        val system = "系统提示：只返回数字"
+        val user = "页面文本：到手约¥42"
+        val maxTokens = 32
+        val estimate = client.estimatedUsage(system, user, maxTokens)
+        val utf8Bytes = (system + user).toByteArray(Charsets.UTF_8).size
 
         assertTrue(result.success)
         assertNull(result.usage)
         assertEquals(estimate, client.usageForAccounting(result, estimate))
-        assertTrue(estimate.totalTokens > 0)
+        assertTrue(estimate.totalTokens >= utf8Bytes + maxTokens)
+    }
+
+    @Test
+    fun priceCatalogRejectsNegativeAndNonFiniteRates() {
+        assertFailsWith<IllegalArgumentException> {
+            DeepSeekPriceCatalog.flashOffPeak.copy(outputPriceUsdPerMillion = -0.01)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            DeepSeekPriceCatalog.flashOffPeak.copy(cacheHitPriceUsdPerMillion = Double.NaN)
+        }
     }
 }

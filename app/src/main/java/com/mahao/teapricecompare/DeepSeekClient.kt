@@ -15,6 +15,7 @@ data class ChatCompletionResult(
     val requestId: String? = null,
     val responseCode: Int? = null,
     val error: String? = null,
+    val usageEstimated: Boolean = false,
 ) {
     val success: Boolean
         get() = error == null && responseCode != null && responseCode in 200..299
@@ -57,7 +58,8 @@ class DeepSeekClient(
         } catch (exception: Exception) {
             ChatCompletionResult(error = sanitizeClientError(exception.message))
         }
-        val usage = usageForAccounting(result, estimatedUsage)
+        val accountedResult = result.copy(usageEstimated = result.usage == null)
+        val usage = usageForAccounting(accountedResult, estimatedUsage)
         val costUsd = priceCatalog.cost(usage)
         queryBudget?.record(usage, costUsd)
         if (usageLedgerStore != null && queryId != null) {
@@ -77,12 +79,13 @@ class DeepSeekClient(
                     costUsd = costUsd,
                     usdToCnyRate = rate,
                     costCny = costUsd * rate,
-                    success = result.success,
-                    error = result.error,
+                    success = accountedResult.success,
+                    error = accountedResult.error,
+                    usageEstimated = accountedResult.usageEstimated,
                 ),
             )
         }
-        return result
+        return accountedResult
     }
 
     internal fun estimatedUsage(
@@ -91,12 +94,16 @@ class DeepSeekClient(
         maxTokens: Int,
     ): DeepSeekUsage {
         val boundedMaxTokens = maxTokens.coerceIn(1, MAX_REQUEST_MAX_TOKENS)
-        val estimatedPromptTokens = ((systemPrompt.length + userPrompt.length) / 4).coerceAtLeast(1)
+        val promptBytes = (systemPrompt + userPrompt).toByteArray(StandardCharsets.UTF_8).size.toLong()
+        val estimatedPromptTokens = (promptBytes + 1L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+        val estimatedTotalTokens = (promptBytes + 1L + boundedMaxTokens)
+            .coerceAtMost(Int.MAX_VALUE.toLong())
+            .toInt()
         return DeepSeekUsage(
             promptTokens = estimatedPromptTokens,
             completionTokens = boundedMaxTokens,
             cacheMissTokens = estimatedPromptTokens,
-            totalTokens = estimatedPromptTokens + boundedMaxTokens,
+            totalTokens = estimatedTotalTokens,
         )
     }
 

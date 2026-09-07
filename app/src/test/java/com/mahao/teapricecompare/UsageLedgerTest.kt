@@ -1,6 +1,10 @@
 package com.mahao.teapricecompare
 
 import android.content.SharedPreferences
+import org.json.JSONArray
+import org.json.JSONObject
+import java.util.concurrent.CountDownLatch
+import kotlin.concurrent.thread
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -36,12 +40,14 @@ class UsageLedgerTest {
             costCny = 0.00864,
             success = true,
             error = null,
+            usageEstimated = true,
         )
 
         store.append(record)
 
         val restored = store.readAll().single()
         assertEquals(record, restored)
+        assertTrue(restored.usageEstimated)
     }
 
     @Test
@@ -61,6 +67,73 @@ class UsageLedgerTest {
         }
 
         assertEquals(listOf("query-1", "query-2"), store.readAll().map { it.queryId })
+    }
+
+    @Test
+    fun concurrentAppendsAreSerializedByTheStoreLock() {
+        val writers = 8
+        val recordsPerWriter = 10
+        val store = UsageLedgerStore(
+            MemoryPreferences(),
+            maxRecords = writers * recordsPerWriter,
+        )
+        val start = CountDownLatch(1)
+        val threads = (0 until writers).map { writer ->
+            thread(start = false) {
+                start.await()
+                repeat(recordsPerWriter) { index ->
+                    store.append(
+                        UsageLedgerRecord(
+                            queryId = "query-$writer-$index",
+                            phase = "test",
+                            model = "deepseek-v4-flash",
+                        ),
+                    )
+                }
+            }
+        }
+
+        start.countDown()
+        threads.forEach { it.join() }
+
+        assertEquals(writers * recordsPerWriter, store.readAll().size)
+    }
+
+    @Test
+    fun corruptedJsonFailsSafelyWithoutOverwritingTheStoredValue() {
+        val preferences = MemoryPreferences()
+        val corrupted = "[{not valid json"
+        preferences.edit().putString("deepseek_usage_ledger", corrupted).apply()
+        val store = UsageLedgerStore(preferences)
+
+        assertTrue(store.readAll().isEmpty())
+        assertFalse(
+            store.append(
+                UsageLedgerRecord(
+                    queryId = "new-query",
+                    phase = "test",
+                    model = "deepseek-v4-flash",
+                ),
+            ),
+        )
+        assertEquals(corrupted, preferences.getString("deepseek_usage_ledger", null))
+    }
+
+    @Test
+    fun legacyErrorsAreControlledWhenReadBack() {
+        val preferences = MemoryPreferences()
+        val legacy = JSONArray().put(
+            JSONObject()
+                .put("query_id", "legacy-query")
+                .put("phase", "test")
+                .put("model", "deepseek-v4-flash")
+                .put("error", "legacy page text with secret=sk-live-value"),
+        )
+        preferences.edit().putString("deepseek_usage_ledger", legacy.toString()).apply()
+
+        val restored = UsageLedgerStore(preferences).readAll().single()
+
+        assertEquals("request_failed", restored.error)
     }
 
     @Test

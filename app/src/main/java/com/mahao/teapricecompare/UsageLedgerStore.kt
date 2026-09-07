@@ -21,6 +21,7 @@ data class UsageLedgerRecord(
     val costCny: Double = 0.0,
     val success: Boolean = false,
     val error: String? = null,
+    val usageEstimated: Boolean = false,
 ) {
     internal fun toJson() = JSONObject().apply {
         put("query_id", queryId)
@@ -44,6 +45,7 @@ data class UsageLedgerRecord(
         put("usd_to_cny_rate", usdToCnyRate.coerceAtLeast(0.0))
         put("cost_cny", costCny.coerceAtLeast(0.0))
         put("success", success)
+        put("usage_estimated", usageEstimated)
         putNullable("error", sanitizeLedgerError(error))
     }
 
@@ -64,7 +66,8 @@ data class UsageLedgerRecord(
                 usdToCnyRate = json.optDouble("usd_to_cny_rate", 0.0),
                 costCny = json.optDouble("cost_cny", 0.0),
                 success = json.optBoolean("success", false),
-                error = json.optNullableString("error"),
+                error = sanitizeLedgerError(json.optNullableString("error")),
+                usageEstimated = json.optBoolean("usage_estimated", false),
             )
         }
     }
@@ -76,28 +79,48 @@ class UsageLedgerStore(
     maxRecords: Int = DEFAULT_MAX_RECORDS,
 ) {
     private val maxRecords = maxRecords.coerceIn(1, MAX_ALLOWED_RECORDS)
+    private val lock = Any()
 
     constructor(context: Context, maxRecords: Int = DEFAULT_MAX_RECORDS) : this(
         context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE),
         maxRecords,
     )
 
-    fun append(record: UsageLedgerRecord) {
-        val records = readAll().toMutableList().apply { add(record) }.takeLast(maxRecords)
+    fun append(record: UsageLedgerRecord): Boolean = synchronized(lock) {
+        val stored = readStoredRecordsLocked()
+        if (!stored.isValid) return@synchronized false
         val json = JSONArray()
-        records.forEach { json.put(it.toJson()) }
+        stored.records
+            .toMutableList()
+            .apply { add(record) }
+            .takeLast(maxRecords)
+            .forEach { json.put(it.toJson()) }
         preferences.edit().putString(KEY_RECORDS, json.toString()).apply()
+        true
     }
 
-    fun readAll(): List<UsageLedgerRecord> {
-        val raw = preferences.getString(KEY_RECORDS, null) ?: return emptyList()
+    fun readAll(): List<UsageLedgerRecord> = synchronized(lock) {
+        readStoredRecordsLocked().records
+    }
+
+    private fun readStoredRecordsLocked(): StoredRecords {
+        val raw = preferences.getString(KEY_RECORDS, null)
+            ?: return StoredRecords(emptyList(), isValid = true)
         return runCatching {
             val json = JSONArray(raw)
-            (0 until json.length()).mapNotNull { index ->
-                runCatching { UsageLedgerRecord.fromJson(json.getJSONObject(index)) }.getOrNull()
-            }
-        }.getOrDefault(emptyList())
+            StoredRecords(
+                records = (0 until json.length()).mapNotNull { index ->
+                    runCatching { UsageLedgerRecord.fromJson(json.getJSONObject(index)) }.getOrNull()
+                },
+                isValid = true,
+            )
+        }.getOrElse { StoredRecords(emptyList(), isValid = false) }
     }
+
+    private data class StoredRecords(
+        val records: List<UsageLedgerRecord>,
+        val isValid: Boolean,
+    )
 
     companion object {
         const val DEFAULT_MAX_RECORDS = 100
@@ -122,9 +145,13 @@ private fun sanitizeLedgerError(error: String?): String? {
         ?.getOrNull(1)
     return when {
         httpCode != null -> "deepseek_http_$httpCode"
+        Regex("^deepseek_http_[1-5]\\d{2}$").matches(normalized) -> normalized
         normalized == "Query budget exceeded before request" -> "budget_exceeded"
+        normalized == "budget_exceeded" -> normalized
         normalized == "Invalid DeepSeek response" -> "invalid_response"
+        normalized == "invalid_response" -> normalized
         normalized == "DeepSeek request failed" -> "request_failed"
+        normalized == "request_failed" -> normalized
         else -> "request_failed"
     }
 }

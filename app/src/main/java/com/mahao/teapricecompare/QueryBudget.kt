@@ -19,7 +19,11 @@ class QueryBudget {
         private set
 
     @Synchronized
-    fun canStart(estimatedTokens: Int = 0, estimatedCostUsd: Double = 0.0): Boolean {
+    fun canStart(
+        estimatedTokens: Int = 0,
+        estimatedCostUsd: Double = 0.0,
+        requiresRecoveryStep: Boolean = false,
+    ): Boolean {
         val tokens = estimatedTokens.coerceAtLeast(0)
         val cost = estimatedCostUsd.coerceAtLeast(0.0)
         return callsUsed < maxCalls &&
@@ -27,7 +31,12 @@ class QueryBudget {
             totalTokensUsed + tokens <= maxTotalTokens &&
             costUsdUsed < maxCostUsd &&
             costUsdUsed + cost <= maxCostUsd &&
-            recoveryStepsUsed < maxRecoverySteps
+            (!requiresRecoveryStep || recoveryStepsUsed < maxRecoverySteps)
+    }
+
+    @Synchronized
+    fun canStartRecovery(estimatedTokens: Int = 0, estimatedCostUsd: Double = 0.0): Boolean =
+        canStart(estimatedTokens, estimatedCostUsd, requiresRecoveryStep = true)
     }
 
     @Synchronized
@@ -108,6 +117,12 @@ data class DeepSeekPriceCatalog(
     val cacheMissPriceUsdPerMillion: Double,
     val outputPriceUsdPerMillion: Double,
 ) {
+    init {
+        require(cacheHitPriceUsdPerMillion.isFinite() && cacheHitPriceUsdPerMillion >= 0.0)
+        require(cacheMissPriceUsdPerMillion.isFinite() && cacheMissPriceUsdPerMillion >= 0.0)
+        require(outputPriceUsdPerMillion.isFinite() && outputPriceUsdPerMillion >= 0.0)
+    }
+
     fun cost(usage: DeepSeekUsage): Double = (
         usage.cacheHitTokens * cacheHitPriceUsdPerMillion +
             usage.cacheMissTokens * cacheMissPriceUsdPerMillion +
