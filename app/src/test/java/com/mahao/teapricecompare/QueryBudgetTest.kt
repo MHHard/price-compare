@@ -260,6 +260,30 @@ class QueryBudgetTest {
     }
 
     @Test
+    fun usageRequiresExactCacheAndTotalTokenBreakdowns() {
+        val cacheMismatch = DeepSeekUsage.fromJson(
+            usageJson(prompt = 10, completion = 2, total = 12)
+                .put("prompt_cache_hit_tokens", 4)
+                .put("prompt_cache_miss_tokens", 5),
+        )
+        val totalMismatch = DeepSeekUsage.fromJson(
+            usageJson(prompt = 10, completion = 2, total = 13)
+                .put("prompt_cache_hit_tokens", 4)
+                .put("prompt_cache_miss_tokens", 6),
+        )
+
+        assertFalse(cacheMismatch.isComplete)
+        assertFalse(totalMismatch.isComplete)
+        assertTrue(
+            DeepSeekUsage.fromJson(
+                usageJson(prompt = 10, completion = 2, total = 12)
+                    .put("prompt_cache_hit_tokens", 4)
+                    .put("prompt_cache_miss_tokens", 6),
+            ).isComplete,
+        )
+    }
+
+    @Test
     fun priceCatalogRejectsNegativeAndNonFiniteRates() {
         assertFailsWith<IllegalArgumentException> {
             DeepSeekPriceCatalog.flashOffPeak.copy(outputPriceUsdPerMillion = -0.01)

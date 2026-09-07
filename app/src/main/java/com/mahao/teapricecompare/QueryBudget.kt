@@ -160,14 +160,14 @@ data class DeepSeekUsage(
                 hitValue != null -> (prompt - hitValue).coerceAtLeast(0)
                 else -> prompt
             }
-            val cacheConsistent = hit.toLong() + miss.toLong() <= prompt.toLong()
+            val cacheConsistent = hit.toLong() + miss.toLong() == prompt.toLong()
             val isComplete = promptValue != null &&
                 completionValue != null &&
                 totalValue != null &&
                 reasoningValid &&
                 cacheFieldsValid &&
                 cacheConsistent &&
-                total.toLong() >= prompt.toLong() + completion.toLong()
+                total.toLong() == prompt.toLong() + completion.toLong()
             return DeepSeekUsage(prompt, completion, reasoning, hit, miss, total, isComplete)
         }
 
