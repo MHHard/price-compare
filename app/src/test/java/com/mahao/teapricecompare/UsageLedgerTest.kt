@@ -73,16 +73,16 @@ class UsageLedgerTest {
     fun concurrentAppendsAreSerializedByTheStoreLock() {
         val writers = 8
         val recordsPerWriter = 10
-        val store = UsageLedgerStore(
-            MemoryPreferences(),
-            maxRecords = writers * recordsPerWriter,
-        )
+        val preferences = MemoryPreferences()
+        val stores = (0 until 2).map {
+            UsageLedgerStore(preferences, maxRecords = writers * recordsPerWriter)
+        }
         val start = CountDownLatch(1)
         val threads = (0 until writers).map { writer ->
             thread(start = false) {
                 start.await()
                 repeat(recordsPerWriter) { index ->
-                    store.append(
+                    stores[writer % stores.size].append(
                         UsageLedgerRecord(
                             queryId = "query-$writer-$index",
                             phase = "test",
@@ -96,7 +96,7 @@ class UsageLedgerTest {
         start.countDown()
         threads.forEach { it.join() }
 
-        assertEquals(writers * recordsPerWriter, store.readAll().size)
+        assertEquals(writers * recordsPerWriter, stores.first().readAll().size)
     }
 
     @Test

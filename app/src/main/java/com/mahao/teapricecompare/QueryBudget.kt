@@ -25,18 +25,48 @@ class QueryBudget {
         requiresRecoveryStep: Boolean = false,
     ): Boolean {
         val tokens = estimatedTokens.coerceAtLeast(0)
-        val cost = estimatedCostUsd.coerceAtLeast(0.0)
-        return callsUsed < maxCalls &&
-            totalTokensUsed < maxTotalTokens &&
-            totalTokensUsed + tokens <= maxTotalTokens &&
-            costUsdUsed < maxCostUsd &&
-            costUsdUsed + cost <= maxCostUsd &&
-            (!requiresRecoveryStep || recoveryStepsUsed < maxRecoverySteps)
+        val cost = estimatedCostUsd.takeIf { it.isFinite() && it >= 0.0 } ?: return false
+        return callsUsed + inFlightCalls < maxCalls &&
+            totalTokensUsed.toLong() + inFlightTokens < maxTotalTokens.toLong() &&
+            totalTokensUsed.toLong() + inFlightTokens + tokens.toLong() <= maxTotalTokens.toLong() &&
+            costUsdUsed + inFlightCostUsd < maxCostUsd &&
+            costUsdUsed + inFlightCostUsd + cost <= maxCostUsd &&
+            (!requiresRecoveryStep || recoveryStepsUsed + inFlightRecoverySteps < maxRecoverySteps)
     }
 
     @Synchronized
     fun canStartRecovery(estimatedTokens: Int = 0, estimatedCostUsd: Double = 0.0): Boolean =
         canStart(estimatedTokens, estimatedCostUsd, requiresRecoveryStep = true)
+
+    @Synchronized
+    fun reserve(
+        estimatedTokens: Int = 0,
+        estimatedCostUsd: Double = 0.0,
+        requiresRecoveryStep: Boolean = false,
+    ): QueryBudgetReservation? {
+        if (!canStart(estimatedTokens, estimatedCostUsd, requiresRecoveryStep)) return null
+        val tokens = estimatedTokens.coerceAtLeast(0)
+        val cost = estimatedCostUsd.takeIf { it.isFinite() && it >= 0.0 } ?: return null
+        inFlightCalls += 1
+        inFlightTokens += tokens.toLong()
+        inFlightCostUsd += cost
+        if (requiresRecoveryStep) inFlightRecoverySteps += 1
+        return QueryBudgetReservation(tokens, cost, requiresRecoveryStep)
+    }
+
+    @Synchronized
+    fun settle(reservation: QueryBudgetReservation, usage: DeepSeekUsage, costUsd: Double): Boolean {
+        if (!reservation.active) return false
+        reservation.active = false
+        inFlightCalls -= 1
+        inFlightTokens -= reservation.estimatedTokens.toLong()
+        inFlightCostUsd -= reservation.estimatedCostUsd
+        if (reservation.requiresRecoveryStep) {
+            inFlightRecoverySteps -= 1
+            recoveryStepsUsed += 1
+        }
+        recordUsage(usage.totalTokens, costUsd)
+        return true
     }
 
     @Synchronized
@@ -46,17 +76,28 @@ class QueryBudget {
 
     @Synchronized
     fun record(tokens: Int, costUsd: Double) {
+        recordUsage(tokens, costUsd)
+    }
+
+    private fun recordUsage(tokens: Int, costUsd: Double) {
         callsUsed += 1
-        totalTokensUsed += tokens.coerceAtLeast(0)
-        costUsdUsed += costUsd.coerceAtLeast(0.0)
+        totalTokensUsed = (totalTokensUsed.toLong() + tokens.coerceAtLeast(0).toLong())
+            .coerceAtMost(Int.MAX_VALUE.toLong())
+            .toInt()
+        costUsdUsed += costUsd.takeIf { it.isFinite() && it >= 0.0 } ?: 0.0
     }
 
     @Synchronized
     fun recordRecoveryStep(): Boolean {
-        if (recoveryStepsUsed >= maxRecoverySteps) return false
+        if (recoveryStepsUsed + inFlightRecoverySteps >= maxRecoverySteps) return false
         recoveryStepsUsed += 1
         return true
     }
+
+    private var inFlightCalls = 0
+    private var inFlightTokens = 0L
+    private var inFlightCostUsd = 0.0
+    private var inFlightRecoverySteps = 0
 
     companion object {
         const val MAX_CALLS = 6
@@ -66,6 +107,14 @@ class QueryBudget {
     }
 }
 
+class QueryBudgetReservation internal constructor(
+    internal val estimatedTokens: Int,
+    internal val estimatedCostUsd: Double,
+    internal val requiresRecoveryStep: Boolean,
+) {
+    internal var active: Boolean = true
+}
+
 data class DeepSeekUsage(
     val promptTokens: Int = 0,
     val completionTokens: Int = 0,
@@ -73,11 +122,12 @@ data class DeepSeekUsage(
     val cacheHitTokens: Int = 0,
     val cacheMissTokens: Int = 0,
     val totalTokens: Int = 0,
+    val isComplete: Boolean = true,
 ) {
     companion object {
         fun fromJson(json: JSONObject): DeepSeekUsage {
-            val prompt = json.optInt("prompt_tokens", 0).coerceAtLeast(0)
-            val completion = json.optInt("completion_tokens", 0).coerceAtLeast(0)
+            val prompt = readToken(json, "prompt_tokens")
+            val completion = readToken(json, "completion_tokens")
             val reasoning = json.optInt("reasoning_tokens", 0).coerceAtLeast(0).let { direct ->
                 if (direct != 0) direct else {
                     json.optJSONObject("completion_tokens_details")
@@ -99,13 +149,21 @@ data class DeepSeekUsage(
                 hasMiss -> declaredMiss.coerceAtMost((prompt - hit).coerceAtLeast(0))
                 else -> (prompt - hit).coerceAtLeast(0)
             }
-            val total = if (json.has("total_tokens")) {
-                json.optInt("total_tokens", prompt + completion).coerceAtLeast(0)
-            } else {
-                prompt + completion
-            }
-            return DeepSeekUsage(prompt, completion, reasoning, hit, miss, total)
+            val total = readToken(json, "total_tokens")
+            val isComplete = hasToken(json, "prompt_tokens") &&
+                hasToken(json, "completion_tokens") &&
+                hasToken(json, "total_tokens")
+            return DeepSeekUsage(prompt, completion, reasoning, hit, miss, total, isComplete)
         }
+
+        private fun hasToken(json: JSONObject, key: String): Boolean =
+            json.has(key) && !json.isNull(key) && json.opt(key) is Number
+
+        private fun readToken(json: JSONObject, key: String): Int =
+            (json.opt(key) as? Number)?.toLong()
+                ?.coerceIn(0L, Int.MAX_VALUE.toLong())
+                ?.toInt()
+                ?: 0
     }
 }
 
@@ -123,11 +181,14 @@ data class DeepSeekPriceCatalog(
         require(outputPriceUsdPerMillion.isFinite() && outputPriceUsdPerMillion >= 0.0)
     }
 
-    fun cost(usage: DeepSeekUsage): Double = (
-        usage.cacheHitTokens * cacheHitPriceUsdPerMillion +
-            usage.cacheMissTokens * cacheMissPriceUsdPerMillion +
-            usage.completionTokens * outputPriceUsdPerMillion
-        ) / 1_000_000.0
+    fun cost(usage: DeepSeekUsage): Double {
+        val value = (
+            usage.cacheHitTokens.coerceAtLeast(0) * cacheHitPriceUsdPerMillion +
+                usage.cacheMissTokens.coerceAtLeast(0) * cacheMissPriceUsdPerMillion +
+                usage.completionTokens.coerceAtLeast(0) * outputPriceUsdPerMillion
+            ) / 1_000_000.0
+        return value.takeIf { it.isFinite() && it >= 0.0 } ?: 0.0
+    }
 
     companion object {
         val flashOffPeak = DeepSeekPriceCatalog(

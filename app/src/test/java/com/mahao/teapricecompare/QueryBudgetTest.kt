@@ -35,6 +35,22 @@ class QueryBudgetTest {
     }
 
     @Test
+    fun reservationsAtomicallyHoldCallTokenAndCostCapacity() {
+        val budget = QueryBudget()
+        val reservations = (0 until QueryBudget.MAX_CALLS).map {
+            budget.reserve(estimatedTokens = 100, estimatedCostUsd = 0.001)
+        }
+
+        assertTrue(reservations.all { it != null })
+        assertEquals(null, budget.reserve(estimatedTokens = 100, estimatedCostUsd = 0.001))
+        reservations.filterNotNull().forEach { reservation ->
+            assertTrue(budget.settle(reservation, DeepSeekUsage(totalTokens = 100), 0.001))
+        }
+        assertFalse(budget.settle(reservations.first()!!, DeepSeekUsage(totalTokens = 100), 0.001))
+        assertEquals(QueryBudget.MAX_CALLS, budget.callsUsed)
+    }
+
+    @Test
     fun exhaustedRecoveryBudgetDoesNotBlockOrdinaryCalls() {
         val budget = QueryBudget()
 
@@ -161,6 +177,23 @@ class QueryBudgetTest {
         assertNull(result.usage)
         assertEquals(estimate, client.usageForAccounting(result, estimate))
         assertTrue(estimate.totalTokens >= utf8Bytes + maxTokens)
+
+        val emptyEstimate = client.estimatedUsage("", "", maxTokens)
+        assertEquals(64 + maxTokens, emptyEstimate.totalTokens)
+    }
+
+    @Test
+    fun emptyOrPartialUsageIsNotTreatedAsActualUsage() {
+        val client = DeepSeekClient("")
+        val empty = DeepSeekUsage.fromJson(JSONObject("{}"))
+        val partial = DeepSeekUsage.fromJson(JSONObject("""{"prompt_tokens": 4}"""))
+        val estimate = client.estimatedUsage("system", "user", maxTokens = 8)
+        val result = ChatCompletionResult(usage = empty, responseCode = 200, content = "ok")
+
+        assertFalse(empty.isComplete)
+        assertFalse(partial.isComplete)
+        assertFalse(result.hasCompleteUsage)
+        assertEquals(estimate, client.usageForAccounting(result, estimate))
     }
 
     @Test
@@ -171,5 +204,9 @@ class QueryBudgetTest {
         assertFailsWith<IllegalArgumentException> {
             DeepSeekPriceCatalog.flashOffPeak.copy(cacheHitPriceUsdPerMillion = Double.NaN)
         }
+        assertEquals(
+            0.0,
+            DeepSeekPriceCatalog.flashOffPeak.cost(DeepSeekUsage(cacheHitTokens = -1, completionTokens = -1)),
+        )
     }
 }

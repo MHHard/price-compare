@@ -79,14 +79,13 @@ class UsageLedgerStore(
     maxRecords: Int = DEFAULT_MAX_RECORDS,
 ) {
     private val maxRecords = maxRecords.coerceIn(1, MAX_ALLOWED_RECORDS)
-    private val lock = Any()
 
     constructor(context: Context, maxRecords: Int = DEFAULT_MAX_RECORDS) : this(
         context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE),
         maxRecords,
     )
 
-    fun append(record: UsageLedgerRecord): Boolean = synchronized(lock) {
+    fun append(record: UsageLedgerRecord): Boolean = synchronized(GLOBAL_LOCK) {
         val stored = readStoredRecordsLocked()
         if (!stored.isValid) return@synchronized false
         val json = JSONArray()
@@ -99,7 +98,7 @@ class UsageLedgerStore(
         true
     }
 
-    fun readAll(): List<UsageLedgerRecord> = synchronized(lock) {
+    fun readAll(): List<UsageLedgerRecord> = synchronized(GLOBAL_LOCK) {
         readStoredRecordsLocked().records
     }
 
@@ -127,6 +126,7 @@ class UsageLedgerStore(
         private const val MAX_ALLOWED_RECORDS = 1_000
         private const val PREFERENCES_NAME = "deepseek_usage_ledger"
         private const val KEY_RECORDS = "deepseek_usage_ledger"
+        private val GLOBAL_LOCK = Any()
     }
 }
 

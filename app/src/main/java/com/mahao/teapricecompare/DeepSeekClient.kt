@@ -16,9 +16,13 @@ data class ChatCompletionResult(
     val responseCode: Int? = null,
     val error: String? = null,
     val usageEstimated: Boolean = false,
+    val ledgerError: String? = null,
 ) {
     val success: Boolean
-        get() = error == null && responseCode != null && responseCode in 200..299
+        get() = error == null && ledgerError == null && responseCode != null && responseCode in 200..299
+
+    val hasCompleteUsage: Boolean
+        get() = usage?.isComplete == true
 }
 
 /** DeepSeek chat client with optional query-level accounting for Agent/Comparator integrations. */
@@ -42,11 +46,11 @@ class DeepSeekClient(
     ): ChatCompletionResult {
         val boundedMaxTokens = maxTokens.coerceIn(1, MAX_REQUEST_MAX_TOKENS)
         val estimatedUsage = estimatedUsage(systemPrompt, userPrompt, boundedMaxTokens)
-        if (queryBudget != null && !queryBudget.canStart(
-                estimatedUsage.totalTokens,
-                priceCatalog.cost(estimatedUsage),
-            )
-        ) {
+        val reservation = queryBudget?.reserve(
+            estimatedUsage.totalTokens,
+            priceCatalog.cost(estimatedUsage),
+        )
+        if (queryBudget != null && reservation == null) {
             return ChatCompletionResult(error = "Query budget exceeded before request")
         }
 
@@ -58,32 +62,39 @@ class DeepSeekClient(
         } catch (exception: Exception) {
             ChatCompletionResult(error = sanitizeClientError(exception.message))
         }
-        val accountedResult = result.copy(usageEstimated = result.usage == null)
+        var accountedResult = result.copy(usageEstimated = result.usage?.isComplete != true)
         val usage = usageForAccounting(accountedResult, estimatedUsage)
         val costUsd = priceCatalog.cost(usage)
-        queryBudget?.record(usage, costUsd)
+        if (queryBudget != null && reservation != null) {
+            queryBudget.settle(reservation, usage, costUsd)
+        }
         if (usageLedgerStore != null && queryId != null) {
             val rate = usdToCnyRate.coerceAtLeast(0.0)
-            usageLedgerStore.append(
-                UsageLedgerRecord(
-                    queryId = queryId,
-                    requestId = result.requestId,
-                    apiRequestId = result.requestId,
-                    phase = phase,
-                    model = result.model ?: priceCatalog.model,
-                    startedAt = startedAt,
-                    durationMs = (System.currentTimeMillis() - startedAt).coerceAtLeast(0L),
-                    usage = usage,
-                    priceVersion = priceCatalog.priceVersion,
-                    billingPeriod = priceCatalog.billingPeriod,
-                    costUsd = costUsd,
-                    usdToCnyRate = rate,
-                    costCny = costUsd * rate,
-                    success = accountedResult.success,
-                    error = accountedResult.error,
-                    usageEstimated = accountedResult.usageEstimated,
-                ),
-            )
+            val persisted = runCatching {
+                usageLedgerStore.append(
+                    UsageLedgerRecord(
+                        queryId = queryId,
+                        requestId = result.requestId,
+                        apiRequestId = result.requestId,
+                        phase = phase,
+                        model = result.model ?: priceCatalog.model,
+                        startedAt = startedAt,
+                        durationMs = (System.currentTimeMillis() - startedAt).coerceAtLeast(0L),
+                        usage = usage,
+                        priceVersion = priceCatalog.priceVersion,
+                        billingPeriod = priceCatalog.billingPeriod,
+                        costUsd = costUsd,
+                        usdToCnyRate = rate,
+                        costCny = costUsd * rate,
+                        success = accountedResult.success,
+                        error = accountedResult.error,
+                        usageEstimated = accountedResult.usageEstimated,
+                    ),
+                )
+            }.getOrDefault(false)
+            if (!persisted) {
+                accountedResult = accountedResult.copy(ledgerError = "usage_ledger_write_failed")
+            }
         }
         return accountedResult
     }
@@ -95,8 +106,10 @@ class DeepSeekClient(
     ): DeepSeekUsage {
         val boundedMaxTokens = maxTokens.coerceIn(1, MAX_REQUEST_MAX_TOKENS)
         val promptBytes = (systemPrompt + userPrompt).toByteArray(StandardCharsets.UTF_8).size.toLong()
-        val estimatedPromptTokens = (promptBytes + 1L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
-        val estimatedTotalTokens = (promptBytes + 1L + boundedMaxTokens)
+        val estimatedPromptTokens = (promptBytes + ESTIMATED_MESSAGE_OVERHEAD_TOKENS)
+            .coerceAtMost(Int.MAX_VALUE.toLong())
+            .toInt()
+        val estimatedTotalTokens = (promptBytes + ESTIMATED_MESSAGE_OVERHEAD_TOKENS + boundedMaxTokens)
             .coerceAtMost(Int.MAX_VALUE.toLong())
             .toInt()
         return DeepSeekUsage(
@@ -110,7 +123,7 @@ class DeepSeekClient(
     internal fun usageForAccounting(
         result: ChatCompletionResult,
         estimatedUsage: DeepSeekUsage,
-    ): DeepSeekUsage = result.usage ?: estimatedUsage
+    ): DeepSeekUsage = result.usage?.takeIf { it.isComplete } ?: estimatedUsage
 
     /** Returns the best matching candidate index, or null when no candidate is plausible. */
     suspend fun matchStore(storeKeyword: String, candidates: List<String>): Int? {
@@ -228,6 +241,7 @@ class DeepSeekClient(
         private const val READ_TIMEOUT_MS = 30_000
         private const val DEFAULT_MAX_TOKENS = 512
         private const val MAX_REQUEST_MAX_TOKENS = 2_048
+        private const val ESTIMATED_MESSAGE_OVERHEAD_TOKENS = 64L
     }
 }
 
