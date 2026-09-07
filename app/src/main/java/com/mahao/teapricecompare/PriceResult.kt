@@ -10,5 +10,5 @@ data class PriceResult(
     val candidates: List<ProductCandidate> = emptyList(),
     val orderConstraints: OrderConstraints? = null,
 ) {
-    val isSuccess: Boolean get() = price != null
+    val isSuccess: Boolean get() = isValidComparisonPrice(price, orderConstraints)
 }

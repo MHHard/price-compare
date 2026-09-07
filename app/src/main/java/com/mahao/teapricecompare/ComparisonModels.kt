@@ -34,6 +34,12 @@ data class OrderConstraints(
     val isOrderable: Boolean = false,
 )
 
+internal fun isValidComparisonPrice(
+    price: Double?,
+    orderConstraints: OrderConstraints?,
+): Boolean = price?.let { it >= 0.0 && it.isFinite() } == true &&
+    orderConstraints?.isOrderable != false
+
 data class UsageSummary(
     val agentCalls: Int = 0,
     val totalTokens: Int = 0,
@@ -61,8 +67,8 @@ data class ComparisonResultState(
             val status = when {
                 budgetExceeded -> ComparisonStatus.BUDGET_EXCEEDED
                 cheapest == null -> ComparisonStatus.NO_VERIFIED_PRICE
-                stores.any { it.availableModes.isEmpty() } -> ComparisonStatus.PARTIAL
-                else -> ComparisonStatus.SUCCESS
+                stores.all { it.isFullyVerified } -> ComparisonStatus.SUCCESS
+                else -> ComparisonStatus.PARTIAL
             }
             return ComparisonResultState(status = status, cheapest = cheapest)
         }
@@ -77,4 +83,5 @@ data class ComparisonSnapshot(
     val createdAt: Long = System.currentTimeMillis(),
     val usageSummary: UsageSummary = UsageSummary(),
     val cartNotice: String? = null,
+    val failureReason: String? = null,
 )

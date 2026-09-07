@@ -12,7 +12,10 @@ data class MeituanModePrice(
     val error: String? = null,
     val candidates: List<ProductCandidate> = emptyList(),
     val orderConstraints: OrderConstraints? = null,
-)
+) {
+    val isRecommended: Boolean
+        get() = isValidComparisonPrice(price, orderConstraints)
+}
 
 data class MeituanPriceSnapshot(
     val delivery: MeituanModePrice,
@@ -28,10 +31,16 @@ data class MeituanStoreComparison(
     val pickup: MeituanModePrice = MeituanModePrice(MeituanRoute.PICKUP),
 ) {
     val availableModes: List<MeituanModePrice>
-        get() = listOf(voucher, delivery, pickup).filter { it.price != null }
+        get() = allModes.filter { it.isRecommended }
+
+    val isFullyVerified: Boolean
+        get() = allModes.all { it.isRecommended }
 
     val cheapest: MeituanModePrice?
         get() = availableModes.minByOrNull { it.price!! }
+
+    private val allModes: List<MeituanModePrice>
+        get() = listOf(voucher, delivery, pickup)
 }
 
 data class MeituanComparisonResult(
