@@ -10,6 +10,8 @@ data class MeituanModePrice(
     val mode: MeituanRoute,
     val price: Double? = null,
     val error: String? = null,
+    val candidates: List<ProductCandidate> = emptyList(),
+    val orderConstraints: OrderConstraints? = null,
 )
 
 data class MeituanPriceSnapshot(
