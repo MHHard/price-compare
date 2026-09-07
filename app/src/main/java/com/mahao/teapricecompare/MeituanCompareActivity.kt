@@ -52,7 +52,7 @@ class MeituanCompareActivity : AppCompatActivity() {
                 PlatformTarget(storeKeyword, productKeyword),
                 apiKey,
             )
-            statusText.text = if (result.error == null) "比价完成" else "比价没有完成"
+            statusText.text = comparisonStatusText(result)
             resultText.text = formatResult(result)
         }
 
@@ -96,5 +96,15 @@ class MeituanCompareActivity : AppCompatActivity() {
         MeituanRoute.VOUCHER -> "买券"
         MeituanRoute.DELIVERY -> "外卖"
         MeituanRoute.PICKUP -> "自取"
+    }
+}
+
+internal fun comparisonStatusText(result: MeituanComparisonResult): String {
+    if (result.error != null) return "比价没有完成"
+    return when (ComparisonResultState.from(result.stores, budgetExceeded = false).status) {
+        ComparisonStatus.SUCCESS -> "比价完成"
+        ComparisonStatus.PARTIAL -> "部分完成"
+        ComparisonStatus.NO_VERIFIED_PRICE -> "未找到可验证价格"
+        else -> "比价没有完成"
     }
 }

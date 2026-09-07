@@ -44,6 +44,32 @@ class MeituanMvpFlowTest {
     }
 
     @Test
+    fun priceResultConversionKeepsOrderConstraintsAndCandidatesOnEachMode() {
+        val candidates = listOf(ProductCandidate("加料", price = 2.0, isAddable = true))
+        val constraints = OrderConstraints(subtotal = 12.0, isOrderable = false)
+        val result = PriceResult(
+            platform = Platform.MEITUAN_DELIVERY,
+            price = 12.0,
+            candidates = candidates,
+            orderConstraints = constraints,
+            meituanPrices = MeituanPriceSnapshot(
+                delivery = MeituanModePrice(MeituanRoute.DELIVERY, price = 12.0),
+                pickup = MeituanModePrice(MeituanRoute.PICKUP, price = 8.0),
+            ),
+        )
+
+        val comparison = priceResultToMeituanStoreComparison("约束店", result)
+
+        assertEquals(constraints, comparison.voucher.orderConstraints)
+        assertEquals(constraints, comparison.delivery.orderConstraints)
+        assertEquals(constraints, comparison.pickup.orderConstraints)
+        assertEquals(candidates, comparison.voucher.candidates)
+        assertEquals(candidates, comparison.delivery.candidates)
+        assertEquals(candidates, comparison.pickup.candidates)
+        assertTrue(comparison.availableModes.isEmpty())
+    }
+
+    @Test
     fun meituanLaunchIntentBringsExistingTaskToFront() {
         val flags = meituanLaunchFlags()
 

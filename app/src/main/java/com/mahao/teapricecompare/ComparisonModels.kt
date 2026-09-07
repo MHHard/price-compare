@@ -64,11 +64,12 @@ data class ComparisonResultState(
                 }
                 .minByOrNull { (_, mode) -> mode.price!! }
 
+            val verifiedStoreCount = stores.count { it.availableModes.isNotEmpty() }
             val status = when {
                 budgetExceeded -> ComparisonStatus.BUDGET_EXCEEDED
                 cheapest == null -> ComparisonStatus.NO_VERIFIED_PRICE
-                stores.all { it.isFullyVerified } -> ComparisonStatus.SUCCESS
-                else -> ComparisonStatus.PARTIAL
+                stores.size > 1 && verifiedStoreCount in 1 until stores.size -> ComparisonStatus.PARTIAL
+                else -> ComparisonStatus.SUCCESS
             }
             return ComparisonResultState(status = status, cheapest = cheapest)
         }

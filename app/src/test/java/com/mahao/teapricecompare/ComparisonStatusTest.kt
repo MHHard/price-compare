@@ -19,9 +19,23 @@ class ComparisonStatusTest {
     }
 
     @Test
-    fun oneVerifiedModeProducesPartial() {
+    fun oneVerifiedModeProducesSuccess() {
         val result = ComparisonResultState.from(
             stores = listOf(storeWithPrice(8.0)),
+            budgetExceeded = false,
+        )
+
+        assertEquals(ComparisonStatus.SUCCESS, result.status)
+        assertEquals(8.0, result.cheapest?.second?.price)
+    }
+
+    @Test
+    fun multipleStoresWithOneUnverifiedStoreProducesPartial() {
+        val result = ComparisonResultState.from(
+            stores = listOf(
+                storeWithPrice(8.0),
+                storeWithoutPrices(),
+            ),
             budgetExceeded = false,
         )
 
@@ -30,21 +44,14 @@ class ComparisonStatusTest {
     }
 
     @Test
-    fun allModesVerifiedProducesSuccess() {
+    fun multipleStoresWithAtLeastOneVerifiedModeEachProducesSuccess() {
         val result = ComparisonResultState.from(
-            stores = listOf(
-                MeituanStoreComparison(
-                    storeName = "完整价格店",
-                    voucher = MeituanModePrice(MeituanRoute.VOUCHER, price = 8.0),
-                    delivery = MeituanModePrice(MeituanRoute.DELIVERY, price = 9.0),
-                    pickup = MeituanModePrice(MeituanRoute.PICKUP, price = 7.0),
-                ),
-            ),
+            stores = listOf(storeWithPrice(8.0), storeWithPrice(9.0)),
             budgetExceeded = false,
         )
 
         assertEquals(ComparisonStatus.SUCCESS, result.status)
-        assertEquals(MeituanRoute.PICKUP, result.cheapest?.second?.mode)
+        assertEquals(8.0, result.cheapest?.second?.price)
     }
 
     @Test
@@ -135,6 +142,28 @@ class ComparisonStatusTest {
         )
 
         assertEquals(null, snapshot.failureReason)
+    }
+
+    @Test
+    fun comparisonStatusTextUsesVerifiedComparisonState() {
+        assertEquals(
+            "比价完成",
+            comparisonStatusText(MeituanComparisonResult(stores = listOf(storeWithPrice(8.0)))),
+        )
+        assertEquals(
+            "部分完成",
+            comparisonStatusText(
+                MeituanComparisonResult(stores = listOf(storeWithPrice(8.0), storeWithoutPrices())),
+            ),
+        )
+        assertEquals(
+            "未找到可验证价格",
+            comparisonStatusText(MeituanComparisonResult(stores = listOf(storeWithoutPrices()))),
+        )
+        assertEquals(
+            "比价没有完成",
+            comparisonStatusText(MeituanComparisonResult(error = "网络失败")),
+        )
     }
 
     private fun storeWithoutPrices() = MeituanStoreComparison(

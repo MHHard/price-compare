@@ -33,9 +33,6 @@ data class MeituanStoreComparison(
     val availableModes: List<MeituanModePrice>
         get() = allModes.filter { it.isRecommended }
 
-    val isFullyVerified: Boolean
-        get() = allModes.all { it.isRecommended }
-
     val cheapest: MeituanModePrice?
         get() = availableModes.minByOrNull { it.price!! }
 

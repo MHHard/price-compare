@@ -29,19 +29,39 @@ fun priceResultToMeituanStoreComparison(
     result: PriceResult,
 ): MeituanStoreComparison {
     val modes = result.meituanPrices
-    val delivery = modes?.delivery ?: MeituanModePrice(
+    fun MeituanModePrice.withResultContext(): MeituanModePrice = copy(
+        candidates = result.candidates.ifEmpty { candidates },
+        orderConstraints = result.orderConstraints ?: orderConstraints,
+    )
+
+    val delivery = modes?.delivery?.withResultContext() ?: MeituanModePrice(
         MeituanRoute.DELIVERY,
         price = if (result.platform == Platform.MEITUAN_DELIVERY) result.price else null,
         error = result.error,
+        candidates = result.candidates,
+        orderConstraints = result.orderConstraints,
     )
-    val pickup = modes?.pickup ?: MeituanModePrice(
+    val pickup = modes?.pickup?.withResultContext() ?: MeituanModePrice(
         MeituanRoute.PICKUP,
         error = result.error ?: "自取价格未读取",
+        candidates = result.candidates,
+        orderConstraints = result.orderConstraints,
     )
     val voucher = if (result.platform == Platform.MEITUAN) {
-        MeituanModePrice(MeituanRoute.VOUCHER, price = result.price, error = result.error)
+        MeituanModePrice(
+            MeituanRoute.VOUCHER,
+            price = result.price,
+            error = result.error,
+            candidates = result.candidates,
+            orderConstraints = result.orderConstraints,
+        )
     } else {
-        MeituanModePrice(MeituanRoute.VOUCHER, error = "本店买券暂未读取")
+        MeituanModePrice(
+            MeituanRoute.VOUCHER,
+            error = "本店买券暂未读取",
+            candidates = result.candidates,
+            orderConstraints = result.orderConstraints,
+        )
     }
     return MeituanStoreComparison(
         storeName = storeName,
