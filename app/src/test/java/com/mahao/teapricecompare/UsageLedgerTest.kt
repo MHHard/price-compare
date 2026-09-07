@@ -64,7 +64,35 @@ class UsageLedgerTest {
     }
 
     @Test
-    fun serializedRecordDoesNotContainKeysHeadersPageTextOrModelResponse() {
+    fun rawErrorResponseIsReducedBeforeItReachesTheLedger() {
+        val rawErrorBody = """
+            {"error":{"message":"secret=sk-live-value; page text: user address and full model response"}}
+        """.trimIndent()
+        val result = DeepSeekClient("").parseChatCompletionResponse(rawErrorBody, responseCode = 429)
+        val preferences = MemoryPreferences()
+        UsageLedgerStore(preferences).append(
+            UsageLedgerRecord(
+                queryId = "query-safe",
+                requestId = result.requestId,
+                phase = "parse_price",
+                model = result.model ?: "deepseek-v4-flash",
+                usage = result.usage ?: DeepSeekUsage(),
+                success = result.success,
+                error = result.error,
+            ),
+        )
+
+        assertEquals("DeepSeek API error 429", result.error)
+        val serialized = preferences.getString("deepseek_usage_ledger", "")!!
+        assertFalse(serialized.contains(rawErrorBody))
+        assertFalse(serialized.contains("sk-live-value"))
+        assertFalse(serialized.contains("user address"))
+        assertFalse(serialized.contains("full model response"))
+        assertTrue(serialized.contains("deepseek_http_429"))
+    }
+
+    @Test
+    fun untrustedLedgerErrorIsStoredAsAControlledCode() {
         val preferences = MemoryPreferences()
         UsageLedgerStore(preferences).append(
             UsageLedgerRecord(
@@ -73,16 +101,13 @@ class UsageLedgerTest {
                 phase = "parse_price",
                 model = "deepseek-v4-flash",
                 usage = DeepSeekUsage(totalTokens = 10),
-                error = "Bearer sk-secret-value; full page text and full model response must not be stored",
+                error = "unexpected error detail",
             ),
         )
 
         val serialized = preferences.getString("deepseek_usage_ledger", "")!!
-        assertFalse(serialized.contains("Authorization", ignoreCase = true))
-        assertFalse(serialized.contains("Bearer", ignoreCase = true))
-        assertFalse(serialized.contains("sk-secret-value"))
-        assertFalse(serialized.contains("full page text"))
-        assertFalse(serialized.contains("full model response"))
+        assertEquals("request_failed", UsageLedgerStore(preferences).readAll().single().error)
+        assertFalse(serialized.contains("unexpected error detail"))
         assertTrue(serialized.contains("query-safe"))
     }
 

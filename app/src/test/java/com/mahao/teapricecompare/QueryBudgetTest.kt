@@ -4,6 +4,7 @@ import org.json.JSONObject
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class QueryBudgetTest {
@@ -103,5 +104,47 @@ class QueryBudgetTest {
 
         assertEquals(expected, catalog.cost(usage), 0.000000001)
         assertEquals(1200, usage.totalTokens)
+    }
+
+    @Test
+    fun successfulResponseParserReturnsContentUsageRequestIdAndModel() {
+        val result = DeepSeekClient("").parseChatCompletionResponse(
+            """
+            {
+              "id": "chatcmpl-123",
+              "model": "deepseek-v4-flash",
+              "choices": [{"message": {"content": "42"}}],
+              "usage": {
+                "prompt_tokens": 10,
+                "completion_tokens": 2,
+                "prompt_cache_hit_tokens": 4,
+                "prompt_cache_miss_tokens": 6,
+                "total_tokens": 12
+              }
+            }
+            """.trimIndent(),
+            responseCode = 200,
+        )
+
+        assertTrue(result.success)
+        assertEquals("42", result.content)
+        assertEquals("chatcmpl-123", result.requestId)
+        assertEquals("deepseek-v4-flash", result.model)
+        assertEquals(12, result.usage?.totalTokens)
+    }
+
+    @Test
+    fun missingUsageUsesConservativeEstimateForAccounting() {
+        val client = DeepSeekClient("")
+        val result = client.parseChatCompletionResponse(
+            """{"id":"chatcmpl-no-usage","model":"deepseek-v4-flash","choices":[{"message":{"content":"42"}}]}""",
+            responseCode = 200,
+        )
+        val estimate = client.estimatedUsage("system", "user", maxTokens = 32)
+
+        assertTrue(result.success)
+        assertNull(result.usage)
+        assertEquals(estimate, client.usageForAccounting(result, estimate))
+        assertTrue(estimate.totalTokens > 0)
     }
 }

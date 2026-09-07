@@ -115,10 +115,16 @@ private fun JSONObject.optNullableString(key: String): String? =
     if (isNull(key)) null else optString(key).takeIf { it.isNotBlank() }
 
 private fun sanitizeLedgerError(error: String?): String? {
-    if (error == null) return null
-    return error
-        .replace(Regex("(?i)authorization\\s*:\\s*[^,;\\s]+"), "authorization: [redacted]")
-        .replace(Regex("(?i)bearer\\s+[A-Za-z0-9._-]+"), "Bearer [redacted]")
-        .replace(Regex("(?i)sk-[A-Za-z0-9_-]+"), "[redacted-key]")
-        .take(500)
+    val normalized = error?.trim() ?: return null
+    val httpCode = Regex("^DeepSeek API error ([1-5]\\d{2})$")
+        .matchEntire(normalized)
+        ?.groupValues
+        ?.getOrNull(1)
+    return when {
+        httpCode != null -> "deepseek_http_$httpCode"
+        normalized == "Query budget exceeded before request" -> "budget_exceeded"
+        normalized == "Invalid DeepSeek response" -> "invalid_response"
+        normalized == "DeepSeek request failed" -> "request_failed"
+        else -> "request_failed"
+    }
 }

@@ -40,13 +40,7 @@ class DeepSeekClient(
         maxTokens: Int = DEFAULT_MAX_TOKENS,
     ): ChatCompletionResult {
         val boundedMaxTokens = maxTokens.coerceIn(1, MAX_REQUEST_MAX_TOKENS)
-        val estimatedPromptTokens = ((systemPrompt.length + userPrompt.length) / 4).coerceAtLeast(1)
-        val estimatedUsage = DeepSeekUsage(
-            promptTokens = estimatedPromptTokens,
-            completionTokens = boundedMaxTokens,
-            cacheMissTokens = estimatedPromptTokens,
-            totalTokens = estimatedPromptTokens + boundedMaxTokens,
-        )
+        val estimatedUsage = estimatedUsage(systemPrompt, userPrompt, boundedMaxTokens)
         if (queryBudget != null && !queryBudget.canStart(
                 estimatedUsage.totalTokens,
                 priceCatalog.cost(estimatedUsage),
@@ -63,7 +57,7 @@ class DeepSeekClient(
         } catch (exception: Exception) {
             ChatCompletionResult(error = sanitizeClientError(exception.message))
         }
-        val usage = result.usage ?: DeepSeekUsage()
+        val usage = usageForAccounting(result, estimatedUsage)
         val costUsd = priceCatalog.cost(usage)
         queryBudget?.record(usage, costUsd)
         if (usageLedgerStore != null && queryId != null) {
@@ -90,6 +84,26 @@ class DeepSeekClient(
         }
         return result
     }
+
+    internal fun estimatedUsage(
+        systemPrompt: String,
+        userPrompt: String,
+        maxTokens: Int,
+    ): DeepSeekUsage {
+        val boundedMaxTokens = maxTokens.coerceIn(1, MAX_REQUEST_MAX_TOKENS)
+        val estimatedPromptTokens = ((systemPrompt.length + userPrompt.length) / 4).coerceAtLeast(1)
+        return DeepSeekUsage(
+            promptTokens = estimatedPromptTokens,
+            completionTokens = boundedMaxTokens,
+            cacheMissTokens = estimatedPromptTokens,
+            totalTokens = estimatedPromptTokens + boundedMaxTokens,
+        )
+    }
+
+    internal fun usageForAccounting(
+        result: ChatCompletionResult,
+        estimatedUsage: DeepSeekUsage,
+    ): DeepSeekUsage = result.usage ?: estimatedUsage
 
     /** Returns the best matching candidate index, or null when no candidate is plausible. */
     suspend fun matchStore(storeKeyword: String, candidates: List<String>): Int? {
@@ -169,14 +183,12 @@ class DeepSeekClient(
         val model = json?.optString("model")?.takeIf { it.isNotBlank() }
         val requestId = json?.optString("id")?.takeIf { it.isNotBlank() }
         if (responseCode !in 200..299) {
-            val apiMessage = json?.optJSONObject("error")?.optString("message")
-                ?.takeIf { it.isNotBlank() }
             return ChatCompletionResult(
                 usage = usage,
                 model = model,
                 requestId = requestId,
                 responseCode = responseCode,
-                error = sanitizeClientError(apiMessage ?: "DeepSeek API error $responseCode"),
+                error = "DeepSeek API error $responseCode",
             )
         }
         val content = json?.optJSONArray("choices")
