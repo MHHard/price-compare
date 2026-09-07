@@ -70,12 +70,14 @@ class DeepSeekClient(
         if (queryBudget != null && reservation != null) {
             queryBudget.settle(reservation, usage, costUsd)
         }
-        if (usageLedgerStore != null && queryId != null) {
+        val ledgerStore = usageLedgerStore
+        val currentQueryId = queryId
+        if (ledgerStore != null && currentQueryId != null) {
             val rate = safeExchangeRate(usdToCnyRate)
             val persisted = runCatching {
-                usageLedgerStore.append(
+                ledgerStore.append(
                     UsageLedgerRecord(
-                        queryId = queryId,
+                        queryId = currentQueryId,
                         requestId = result.requestId,
                         apiRequestId = result.requestId,
                         phase = phase,

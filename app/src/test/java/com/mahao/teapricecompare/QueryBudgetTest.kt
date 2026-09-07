@@ -198,7 +198,7 @@ class QueryBudgetTest {
 
     @Test
     fun malformedCoreUsageIsIncompleteButLegalUsageRemainsComplete() {
-        val malformedValues = listOf(-1, Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY, "not-a-number")
+        val malformedValues = listOf<Any>(-1, "NaN", "Infinity", "-Infinity", "not-a-number")
         listOf("prompt_tokens", "completion_tokens", "total_tokens").forEach { field ->
             malformedValues.forEach { malformed ->
                 assertFalse(
@@ -219,7 +219,7 @@ class QueryBudgetTest {
 
     @Test
     fun invalidCacheAndTotalUsageIsIncomplete() {
-        val invalidValues = listOf(-1, Double.NaN, Double.POSITIVE_INFINITY, "not-a-number")
+        val invalidValues = listOf<Any>(-1, "NaN", "Infinity", "not-a-number")
         invalidValues.forEach { invalid ->
             assertFalse(
                 DeepSeekUsage.fromJson(

@@ -148,12 +148,17 @@ class FavoriteOrderEditActivity : AppCompatActivity() {
         if (id == null) {
             store.add(name, targets)
         } else {
+            val previous = store.get(id)
             store.update(
                 FavoriteOrder(
                     id = id,
                     name = name,
                     targets = targets,
-                    lastComparison = store.get(id)?.lastComparison,
+                    lastComparison = previous?.lastComparison?.takeIf {
+                        it.target == targets[Platform.MEITUAN_DELIVERY] ||
+                            it.target == targets[Platform.MEITUAN] ||
+                            it.target == targets[Platform.MEITUAN_PICKUP]
+                    },
                 ),
             )
         }

@@ -68,7 +68,7 @@ class RecoveryExecutor(
     ): RecoveryExecutionResult = if (action()) {
         RecoveryExecutionResult(isSuccess = true)
     } else {
-        failure("$label未通过本地验证")
+        failure("${label}未通过本地验证")
     }
 
     private fun failure(message: String) = RecoveryExecutionResult(

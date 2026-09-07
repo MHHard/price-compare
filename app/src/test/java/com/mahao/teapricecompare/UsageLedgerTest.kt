@@ -62,7 +62,11 @@ class UsageLedgerTest {
                     requestId = "request-$index",
                     phase = "test",
                     model = "deepseek-v4-flash",
-                    usage = DeepSeekUsage(totalTokens = index),
+                    usage = DeepSeekUsage(
+                        promptTokens = index,
+                        cacheMissTokens = index,
+                        totalTokens = index,
+                    ),
                 ),
             )
         }
@@ -80,7 +84,7 @@ class UsageLedgerTest {
         }
         val start = CountDownLatch(1)
         val threads = (0 until writers).map { writer ->
-            thread(start = false) {
+            thread(start = true) {
                 start.await()
                 repeat(recordsPerWriter) { index ->
                     stores[writer % stores.size].append(
@@ -199,7 +203,11 @@ class UsageLedgerTest {
                 requestId = "request-safe",
                 phase = "parse_price",
                 model = "deepseek-v4-flash",
-                usage = DeepSeekUsage(totalTokens = 10),
+                usage = DeepSeekUsage(
+                    promptTokens = 10,
+                    cacheMissTokens = 10,
+                    totalTokens = 10,
+                ),
                 error = "unexpected error detail",
             ),
         )
@@ -236,7 +244,8 @@ class UsageLedgerTest {
     @Test
     fun malformedDomainLedgerFieldsAreRejected() {
         assertFailsWith<IllegalArgumentException> {
-            UsageLedgerRecord.fromJson(baseLedgerJson().remove("query_id"))
+            val missingQueryId = baseLedgerJson().also { it.remove("query_id") }
+            UsageLedgerRecord.fromJson(missingQueryId)
         }
         assertFailsWith<IllegalArgumentException> {
             UsageLedgerRecord.fromJson(baseLedgerJson().put("query_id", ""))
@@ -248,10 +257,10 @@ class UsageLedgerTest {
             UsageLedgerRecord.fromJson(baseLedgerJson().put("model", ""))
         }
         assertFailsWith<IllegalArgumentException> {
-            UsageLedgerRecord.fromJson(baseLedgerJson().put("cost_usd", Double.NaN))
+            UsageLedgerRecord.fromJson(baseLedgerJson().put("cost_usd", "NaN"))
         }
         assertFailsWith<IllegalArgumentException> {
-            UsageLedgerRecord.fromJson(baseLedgerJson().put("usd_to_cny_rate", Double.POSITIVE_INFINITY))
+            UsageLedgerRecord.fromJson(baseLedgerJson().put("usd_to_cny_rate", "Infinity"))
         }
         assertFailsWith<IllegalArgumentException> {
             UsageLedgerRecord.fromJson(baseLedgerJson().put("duration_ms", -1))
@@ -288,6 +297,12 @@ class UsageLedgerTest {
         override fun getBoolean(key: String, defValue: Boolean): Boolean = values[key] as? Boolean ?: defValue
         override fun contains(key: String): Boolean = values.containsKey(key)
         override fun edit(): SharedPreferences.Editor = Editor()
+        override fun registerOnSharedPreferenceChangeListener(
+            listener: SharedPreferences.OnSharedPreferenceChangeListener,
+        ) = Unit
+        override fun unregisterOnSharedPreferenceChangeListener(
+            listener: SharedPreferences.OnSharedPreferenceChangeListener,
+        ) = Unit
 
         private inner class Editor : SharedPreferences.Editor {
             private val pending = mutableMapOf<String, Any?>()
