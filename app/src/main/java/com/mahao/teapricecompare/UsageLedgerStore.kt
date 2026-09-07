@@ -41,9 +41,9 @@ data class UsageLedgerRecord(
         })
         putNullable("price_version", priceVersion)
         putNullable("billing_period", billingPeriod)
-        put("cost_usd", costUsd.coerceAtLeast(0.0))
-        put("usd_to_cny_rate", usdToCnyRate.coerceAtLeast(0.0))
-        put("cost_cny", costCny.coerceAtLeast(0.0))
+        put("cost_usd", safeNonNegativeFinite(costUsd))
+        put("usd_to_cny_rate", safeNonNegativeFinite(usdToCnyRate))
+        put("cost_cny", safeNonNegativeFinite(costCny))
         put("success", success)
         put("usage_estimated", usageEstimated)
         putNullable("error", sanitizeLedgerError(error))
@@ -107,11 +107,12 @@ class UsageLedgerStore(
             ?: return StoredRecords(emptyList(), isValid = true)
         return runCatching {
             val json = JSONArray(raw)
+            val parsed = (0 until json.length()).map { index ->
+                runCatching { UsageLedgerRecord.fromJson(json.getJSONObject(index)) }
+            }
             StoredRecords(
-                records = (0 until json.length()).mapNotNull { index ->
-                    runCatching { UsageLedgerRecord.fromJson(json.getJSONObject(index)) }.getOrNull()
-                },
-                isValid = true,
+                records = parsed.mapNotNull { it.getOrNull() },
+                isValid = parsed.all { it.isSuccess },
             )
         }.getOrElse { StoredRecords(emptyList(), isValid = false) }
     }
@@ -155,3 +156,6 @@ private fun sanitizeLedgerError(error: String?): String? {
         else -> "request_failed"
     }
 }
+
+private fun safeNonNegativeFinite(value: Double): Double =
+    value.takeIf { it.isFinite() && it >= 0.0 } ?: 0.0

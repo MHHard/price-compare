@@ -69,7 +69,7 @@ class DeepSeekClient(
             queryBudget.settle(reservation, usage, costUsd)
         }
         if (usageLedgerStore != null && queryId != null) {
-            val rate = usdToCnyRate.coerceAtLeast(0.0)
+            val rate = safeExchangeRate(usdToCnyRate)
             val persisted = runCatching {
                 usageLedgerStore.append(
                     UsageLedgerRecord(
@@ -85,7 +85,7 @@ class DeepSeekClient(
                         billingPeriod = priceCatalog.billingPeriod,
                         costUsd = costUsd,
                         usdToCnyRate = rate,
-                        costCny = costUsd * rate,
+                        costCny = safeCostCny(costUsd, rate),
                         success = accountedResult.success,
                         error = accountedResult.error,
                         usageEstimated = accountedResult.usageEstimated,
@@ -97,6 +97,15 @@ class DeepSeekClient(
             }
         }
         return accountedResult
+    }
+
+    internal fun safeExchangeRate(rate: Double): Double =
+        rate.takeIf { it.isFinite() && it >= 0.0 } ?: 0.0
+
+    internal fun safeCostCny(costUsd: Double, rate: Double): Double {
+        val safeUsd = costUsd.takeIf { it.isFinite() && it >= 0.0 } ?: 0.0
+        val safeRate = safeExchangeRate(rate)
+        return (safeUsd * safeRate).takeIf { it.isFinite() && it >= 0.0 } ?: 0.0
     }
 
     internal fun estimatedUsage(

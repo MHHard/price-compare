@@ -156,12 +156,19 @@ data class DeepSeekUsage(
             return DeepSeekUsage(prompt, completion, reasoning, hit, miss, total, isComplete)
         }
 
-        private fun hasToken(json: JSONObject, key: String): Boolean =
-            json.has(key) && !json.isNull(key) && json.opt(key) is Number
+        private fun hasToken(json: JSONObject, key: String): Boolean {
+            val value = json.opt(key) as? Number ?: return false
+            val doubleValue = value.toDouble()
+            return doubleValue.isFinite() &&
+                doubleValue >= 0.0 &&
+                doubleValue <= Int.MAX_VALUE.toDouble() &&
+                doubleValue == value.toLong().toDouble()
+        }
 
         private fun readToken(json: JSONObject, key: String): Int =
-            (json.opt(key) as? Number)?.toLong()
-                ?.coerceIn(0L, Int.MAX_VALUE.toLong())
+            (json.opt(key) as? Number)
+                ?.takeIf { hasToken(json, key) }
+                ?.toLong()
                 ?.toInt()
                 ?: 0
     }

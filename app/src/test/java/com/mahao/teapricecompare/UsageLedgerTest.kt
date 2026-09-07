@@ -120,6 +120,26 @@ class UsageLedgerTest {
     }
 
     @Test
+    fun invalidArrayItemMakesAppendFailWithoutDroppingSafeRecords() {
+        val preferences = MemoryPreferences()
+        val validRecord = UsageLedgerRecord(
+            queryId = "safe-query",
+            phase = "test",
+            model = "deepseek-v4-flash",
+        )
+        val original = JSONArray()
+            .put(validRecord.toJson())
+            .put("not-a-usage-ledger-record")
+            .toString()
+        preferences.edit().putString("deepseek_usage_ledger", original).apply()
+        val store = UsageLedgerStore(preferences)
+
+        assertEquals(listOf("safe-query"), store.readAll().map { it.queryId })
+        assertFalse(store.append(validRecord.copy(queryId = "new-query")))
+        assertEquals(original, preferences.getString("deepseek_usage_ledger", null))
+    }
+
+    @Test
     fun legacyErrorsAreControlledWhenReadBack() {
         val preferences = MemoryPreferences()
         val legacy = JSONArray().put(

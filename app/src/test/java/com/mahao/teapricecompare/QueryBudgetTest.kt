@@ -197,6 +197,26 @@ class QueryBudgetTest {
     }
 
     @Test
+    fun malformedCoreUsageIsIncompleteButLegalUsageRemainsComplete() {
+        val malformedValues = listOf(-1, Double.NaN, Double.POSITIVE_INFINITY)
+        malformedValues.forEach { malformed ->
+            val usage = DeepSeekUsage.fromJson(
+                JSONObject()
+                    .put("prompt_tokens", malformed)
+                    .put("completion_tokens", 1)
+                    .put("total_tokens", 2),
+            )
+            assertFalse(usage.isComplete, "malformed prompt token: $malformed")
+        }
+
+        assertTrue(
+            DeepSeekUsage.fromJson(
+                JSONObject("""{"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2}"""),
+            ).isComplete,
+        )
+    }
+
+    @Test
     fun priceCatalogRejectsNegativeAndNonFiniteRates() {
         assertFailsWith<IllegalArgumentException> {
             DeepSeekPriceCatalog.flashOffPeak.copy(outputPriceUsdPerMillion = -0.01)
@@ -208,5 +228,18 @@ class QueryBudgetTest {
             0.0,
             DeepSeekPriceCatalog.flashOffPeak.cost(DeepSeekUsage(cacheHitTokens = -1, completionTokens = -1)),
         )
+    }
+
+    @Test
+    fun exchangeRateAndCnyCostRejectNonFiniteOrNegativeValues() {
+        val client = DeepSeekClient("")
+
+        assertEquals(0.0, client.safeExchangeRate(-1.0))
+        assertEquals(0.0, client.safeExchangeRate(Double.NaN))
+        assertEquals(0.0, client.safeExchangeRate(Double.POSITIVE_INFINITY))
+        assertEquals(7.2, client.safeExchangeRate(7.2))
+        assertEquals(0.0, client.safeCostCny(Double.MAX_VALUE, Double.MAX_VALUE))
+        assertEquals(0.0, client.safeCostCny(Double.NaN, 7.2))
+        assertEquals(8.64, client.safeCostCny(1.2, 7.2), 0.000000001)
     }
 }
