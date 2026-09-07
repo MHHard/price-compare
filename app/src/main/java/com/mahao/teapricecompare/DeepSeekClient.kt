@@ -43,12 +43,14 @@ class DeepSeekClient(
         phase: String = defaultPhase,
         responseFormatJson: Boolean = false,
         maxTokens: Int = DEFAULT_MAX_TOKENS,
+        requiresRecoveryStep: Boolean = false,
     ): ChatCompletionResult {
         val boundedMaxTokens = maxTokens.coerceIn(1, MAX_REQUEST_MAX_TOKENS)
         val estimatedUsage = estimatedUsage(systemPrompt, userPrompt, boundedMaxTokens)
         val reservation = queryBudget?.reserve(
             estimatedUsage.totalTokens,
             priceCatalog.cost(estimatedUsage),
+            requiresRecoveryStep = requiresRecoveryStep,
         )
         if (queryBudget != null && reservation == null) {
             return ChatCompletionResult(error = "Query budget exceeded before request")

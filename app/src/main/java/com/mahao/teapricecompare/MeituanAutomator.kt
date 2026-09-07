@@ -18,7 +18,14 @@ data class MeituanSearchResult(val error: String? = null) {
 class MeituanAutomator(
     private val context: Context,
     private val route: MeituanRoute = MeituanRoute.VOUCHER,
+    private val queryBudget: QueryBudget? = null,
+    private val usageLedgerStore: UsageLedgerStore? = null,
+    private val queryId: String? = null,
+    private val recoveryPlanner: AgentRecoveryPlanner? = null,
+    private val usdToCnyRate: Double = SettingsStore.DEFAULT_USD_TO_CNY_RATE,
 ) {
+
+    private var activeStoreKeyword: String = ""
 
     private val resultPlatform = when (route) {
         MeituanRoute.VOUCHER -> Platform.MEITUAN
@@ -94,6 +101,7 @@ class MeituanAutomator(
         if (!MeituanCartController().canCompare) {
             return unavailableStoreComparison(storeName, null, "需要先同意清空美团购物车后才能自动比价")
         }
+        activeStoreKeyword = target.storeKeyword
         val opened = openDeliveryStoreByName(storeName, target.storeKeyword)
         if (!opened.isSuccess) {
             return unavailableStoreComparison(storeName, null, opened.error ?: "进入店铺失败")
@@ -175,6 +183,7 @@ class MeituanAutomator(
         if (target.productKeyword.isBlank()) {
             return PriceResult(resultPlatform, error = "美团饮品关键词不能为空")
         }
+        activeStoreKeyword = target.storeKeyword
         val openResult = runSearchAndOpenStore(target)
         if (!openResult.isSuccess) return PriceResult(resultPlatform, error = openResult.error)
         val merchantDistance = if (route != MeituanRoute.VOUCHER) readMerchantDistance() else null
@@ -234,7 +243,10 @@ class MeituanAutomator(
 
     suspend fun clearCart(): CartClearResult = MeituanCartController().clearCart()
 
-    private suspend fun findProductNode(productKeyword: String, maxScrolls: Int = 5): AccessibilityNodeInfo? {
+    private suspend fun findProductNodeDeterministic(
+        productKeyword: String,
+        maxScrolls: Int = 5,
+    ): AccessibilityNodeInfo? {
         findProductInCurrentCategory(productKeyword, maxScrolls)?.let { return it }
 
         if (route == MeituanRoute.VOUCHER) return null
@@ -258,6 +270,110 @@ class MeituanAutomator(
             findProductInCurrentCategory(productKeyword, maxScrolls = 3)?.let { return it }
         }
         return null
+    }
+
+    private suspend fun findProductNode(productKeyword: String, maxScrolls: Int = 5): AccessibilityNodeInfo? {
+        findProductNodeDeterministic(productKeyword, maxScrolls)?.let { return it }
+        val planner = recoveryPlanner ?: return null
+        return recoverProductNode(productKeyword, planner)
+    }
+
+    private suspend fun recoverProductNode(
+        productKeyword: String,
+        planner: AgentRecoveryPlanner,
+    ): AccessibilityNodeInfo? {
+        val attemptedKeywords = linkedSetOf(productKeyword)
+        val attemptedCategories = linkedSetOf<String>()
+        val attemptedActions = mutableListOf<String>()
+        repeat(MAX_RECOVERY_STEPS) {
+            val observation = buildRecoveryObservation(
+                stage = RecoveryStage.PRODUCT,
+                failureCode = RecoveryFailureCode.PRODUCT_NOT_FOUND,
+                failureMessage = "店铺页面没有通过本地规则找到目标商品",
+                productKeyword = productKeyword,
+                attemptedKeywords = attemptedKeywords.toList(),
+                attemptedCategories = attemptedCategories.toList(),
+                attemptedActions = attemptedActions,
+            )
+            val decision = planner.decide(observation)
+            attemptedActions += decision.action.name
+            val recoveredNode = recoverProductWithDecision(
+                productKeyword = productKeyword,
+                decision = decision,
+                attemptedKeywords = attemptedKeywords,
+                attemptedCategories = attemptedCategories,
+            )
+            if (recoveredNode != null) return recoveredNode
+            if (decision.action in setOf(
+                    RecoveryAction.SKIP_STORE,
+                    RecoveryAction.ASK_USER,
+                    RecoveryAction.STOP,
+                )
+            ) return null
+        }
+        return null
+    }
+
+    private suspend fun recoverProductWithDecision(
+        productKeyword: String,
+        decision: RecoveryDecision,
+        attemptedKeywords: MutableSet<String>,
+        attemptedCategories: MutableSet<String>,
+    ): AccessibilityNodeInfo? {
+        var candidate: AccessibilityNodeInfo? = null
+        val actions = object : RecoveryActions {
+            override suspend fun retryCurrent(): Boolean {
+                candidate = findProductNodeDeterministic(productKeyword, maxScrolls = 1)
+                return candidate != null
+            }
+
+            override suspend fun scrollAndScan(): Boolean = scrollProductListOnce()
+
+            override suspend fun switchCategory(category: String): Boolean {
+                attemptedCategories += category
+                return switchVisibleCategory(category)
+            }
+
+            override suspend fun searchVariant(keyword: String): Boolean {
+                attemptedKeywords += keyword
+                candidate = findProductNodeDeterministic(keyword, maxScrolls = 2)
+                return candidate != null
+            }
+
+            override suspend fun openCandidate(index: Int): Boolean = false
+
+            override suspend fun skipStore(): Boolean = true
+        }
+        val result = RecoveryExecutor(actions, currentState = "PRODUCT_LIST").execute(decision)
+        if (!result.isSuccess) return null
+        if (decision.action == RecoveryAction.SKIP_STORE) return null
+        candidate?.let { return it }
+        return findProductNodeDeterministic(productKeyword, maxScrolls = 2)
+    }
+
+    private suspend fun scrollProductListOnce(): Boolean {
+        val scrollable = TeaAccessibilityService.findAllNodes { node ->
+            node.isScrollable && Rect().also { node.getBoundsInScreen(it) }.width() >= 300
+        }.maxByOrNull { node ->
+            Rect().also { node.getBoundsInScreen(it) }.centerX()
+        } ?: return false
+        val moved = scrollable.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
+        if (moved) delay(600)
+        return moved
+    }
+
+    private suspend fun switchVisibleCategory(category: String): Boolean {
+        val normalized = category.trim()
+        if (normalized.isBlank()) return false
+        val node = TeaAccessibilityService.findNode { current ->
+            if (current.className?.toString() != "android.widget.TextView") return@findNode false
+            val bounds = Rect().also { current.getBoundsInScreen(it) }
+            bounds.left < 264 && bounds.top in 1500..2376 &&
+                current.text?.toString()?.trim() == normalized
+        } ?: return false
+        val clicked = TeaAccessibilityService.click(node)
+        if (clicked) delay(600)
+        return clicked
     }
 
     private suspend fun findProductInCurrentCategory(
@@ -368,11 +484,86 @@ class MeituanAutomator(
         val error: String? = null,
     )
 
+    private data class BundlePlanSearch(
+        val candidates: List<ProductCandidate> = emptyList(),
+        val plan: BundlePlan? = null,
+        val error: String? = null,
+    )
+
     /**
      * The delivery minimum is handled with visible, locally verified products first. This method
      * deliberately returns a failure detail instead of inventing a product; the later recovery
      * Agent can use that detail when this deterministic path has no safe answer.
      */
+    private suspend fun findBundlePlanWithRecovery(
+        target: PlatformTarget,
+        gap: Double,
+    ): BundlePlanSearch {
+        var scan = MeituanProductScanner.scan(target.productKeyword)
+        BundleCalculator.choose(scan.candidates, gap)?.let {
+            return BundlePlanSearch(scan.candidates, it)
+        }
+        val planner = recoveryPlanner ?: return BundlePlanSearch(
+            candidates = scan.candidates,
+            error = scan.error,
+        )
+        val attemptedActions = mutableListOf<String>()
+        val attemptedKeywords = linkedSetOf(target.productKeyword)
+        val attemptedCategories = linkedSetOf<String>()
+        repeat(MAX_RECOVERY_STEPS) {
+            val decision = planner.decide(
+                buildRecoveryObservation(
+                    stage = RecoveryStage.PRODUCT,
+                    failureCode = RecoveryFailureCode.BUNDLE_NOT_FOUND,
+                    failureMessage = "外送还差${formatMoney(gap)}，本地没有找到足够且可验证的凑单组合",
+                    productKeyword = target.productKeyword,
+                    attemptedKeywords = attemptedKeywords.toList(),
+                    attemptedCategories = attemptedCategories.toList(),
+                    attemptedActions = attemptedActions,
+                ),
+            )
+            attemptedActions += decision.action.name
+            val actions = object : RecoveryActions {
+                override suspend fun retryCurrent(): Boolean = true
+
+                override suspend fun scrollAndScan(): Boolean = scrollProductListOnce()
+
+                override suspend fun switchCategory(category: String): Boolean {
+                    attemptedCategories += category
+                    return switchVisibleCategory(category)
+                }
+
+                override suspend fun searchVariant(keyword: String): Boolean {
+                    attemptedKeywords += keyword
+                    return findProductNodeDeterministic(keyword, maxScrolls = 2) != null
+                }
+
+                override suspend fun openCandidate(index: Int): Boolean = false
+
+                override suspend fun skipStore(): Boolean = true
+            }
+            val execution = RecoveryExecutor(actions, currentState = "PRODUCT_LIST").execute(decision)
+            if (execution.isSuccess && decision.action != RecoveryAction.SKIP_STORE) {
+                scan = MeituanProductScanner.scan(target.productKeyword)
+                BundleCalculator.choose(scan.candidates, gap)?.let {
+                    return BundlePlanSearch(scan.candidates, it)
+                }
+            }
+            if (decision.action in setOf(
+                    RecoveryAction.SKIP_STORE,
+                    RecoveryAction.ASK_USER,
+                    RecoveryAction.STOP,
+                )
+            ) {
+                return BundlePlanSearch(
+                    candidates = scan.candidates,
+                    error = decision.reason.ifBlank { scan.error },
+                )
+            }
+        }
+        return BundlePlanSearch(candidates = scan.candidates, error = scan.error)
+    }
+
     private suspend fun ensureMinimumOrder(target: PlatformTarget): LocalBundleResult {
         if (!openCartDrawerAndSelectMode()) {
             return LocalBundleResult(error = "没有打开购物车，无法读取外送起送状态")
@@ -392,53 +583,52 @@ class MeituanAutomator(
             )
         }
 
-        val scan = MeituanProductScanner.scan(target.productKeyword)
-        val plan = BundleCalculator.choose(scan.candidates, constraints.gap)
-            ?: return LocalBundleResult(
-                candidates = scan.candidates,
-                orderConstraints = constraints,
-                error = scan.error ?: "外送还差${formatMoney(constraints.gap)}，没有找到可验证的凑单组合",
-            )
-
         if (!TeaAccessibilityService.pressBack()) {
             return LocalBundleResult(
-                candidates = scan.candidates,
                 orderConstraints = constraints,
-                error = "已找到凑单组合，但无法返回商品列表",
+                error = "已读取起送差额，但无法返回商品列表进行凑单",
             )
         }
         delay(500)
+
+        val bundleSearch = findBundlePlanWithRecovery(target, constraints.gap)
+        val plan = bundleSearch.plan
+            ?: return LocalBundleResult(
+                candidates = bundleSearch.candidates,
+                orderConstraints = constraints,
+                error = bundleSearch.error ?: "外送还差${formatMoney(constraints.gap)}，没有找到可验证的凑单组合",
+            )
 
         for ((index, candidate) in plan.items.withIndex()) {
             val addResult = addProductToCart(candidate)
             if (!addResult.isSuccess) {
                 return LocalBundleResult(
-                    candidates = scan.candidates,
+                    candidates = bundleSearch.candidates,
                     orderConstraints = constraints,
                     error = "凑单商品「${candidate.name}」${addResult.error ?: "加入失败"}",
                 )
             }
             if (!openCartDrawerAndSelectMode()) {
                 return LocalBundleResult(
-                    candidates = scan.candidates,
+                    candidates = bundleSearch.candidates,
                     orderConstraints = constraints,
                     error = "凑单商品已尝试加入，但无法重新读取购物车",
                 )
             }
             constraints = readCurrentOrderConstraints()
                 ?: return LocalBundleResult(
-                    candidates = scan.candidates,
+                    candidates = bundleSearch.candidates,
                     error = "凑单后无法识别外送起送状态",
                 )
             if (constraints.isOrderable) {
                 return LocalBundleResult(
-                    candidates = scan.candidates,
+                    candidates = bundleSearch.candidates,
                     orderConstraints = constraints,
                 )
             }
             if (constraints.gap <= 0.0) {
                 return LocalBundleResult(
-                    candidates = scan.candidates,
+                    candidates = bundleSearch.candidates,
                     orderConstraints = constraints,
                     error = "凑单后起送状态仍无法可靠确认",
                 )
@@ -446,7 +636,7 @@ class MeituanAutomator(
             if (index < plan.items.lastIndex) {
                 if (!TeaAccessibilityService.pressBack()) {
                     return LocalBundleResult(
-                        candidates = scan.candidates,
+                        candidates = bundleSearch.candidates,
                         orderConstraints = constraints,
                         error = "凑单过程中无法返回商品列表",
                     )
@@ -456,7 +646,7 @@ class MeituanAutomator(
         }
 
         return LocalBundleResult(
-            candidates = scan.candidates,
+            candidates = bundleSearch.candidates,
             orderConstraints = constraints,
             error = "外送还差${formatMoney(constraints.gap)}，本地凑单后仍未达到起送价",
         )
@@ -467,9 +657,86 @@ class MeituanAutomator(
 
     private fun currentUiTexts(): List<String> = TeaAccessibilityService.findAllNodes { true }
         .flatMap { listOfNotNull(it.text?.toString(), it.contentDescription?.toString()) }
-        .map(String::trim)
-        .filter(String::isNotBlank)
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
         .distinct()
+
+    private fun buildRecoveryObservation(
+        stage: RecoveryStage,
+        failureCode: RecoveryFailureCode,
+        failureMessage: String,
+        productKeyword: String,
+        attemptedKeywords: List<String> = emptyList(),
+        attemptedCategories: List<String> = emptyList(),
+        attemptedActions: List<String> = emptyList(),
+    ): AutomationObservation {
+        val controls = TeaAccessibilityService.findAllNodes { it.isClickable }
+            .map { node ->
+                val bounds = Rect().also { node.getBoundsInScreen(it) }
+                listOfNotNull(
+                    node.text?.toString()?.trim(),
+                    node.contentDescription?.toString()?.trim(),
+                    node.viewIdResourceName?.let { "id=$it" },
+                    "area=${controlArea(bounds)}",
+                ).joinToString(" ")
+            }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .take(40)
+        val budget = queryBudget?.let {
+            QueryBudgetSnapshot(
+                callsUsed = it.callsUsed,
+                maxCalls = it.maxCalls,
+                totalTokensUsed = it.totalTokensUsed,
+                maxTotalTokens = it.maxTotalTokens,
+                costUsdUsed = it.costUsdUsed,
+                maxCostUsd = it.maxCostUsd,
+                recoveryStepsUsed = it.recoveryStepsUsed,
+                maxRecoverySteps = it.maxRecoverySteps,
+            )
+        } ?: QueryBudgetSnapshot(
+            callsUsed = 0,
+            maxCalls = QueryBudget.MAX_CALLS,
+            totalTokensUsed = 0,
+            maxTotalTokens = QueryBudget.MAX_TOTAL_TOKENS,
+            costUsdUsed = 0.0,
+            maxCostUsd = QueryBudget.MAX_COST_USD,
+            recoveryStepsUsed = 0,
+            maxRecoverySteps = QueryBudget.MAX_RECOVERY_STEPS,
+        )
+        return AutomationObservation(
+            queryId = queryId ?: "standalone",
+            route = route,
+            stage = stage,
+            failureCode = failureCode,
+            storeKeyword = activeStoreKeyword,
+            productKeyword = productKeyword,
+            failureMessage = failureMessage,
+            attemptedKeywords = attemptedKeywords,
+            attemptedCategories = attemptedCategories,
+            attemptedActions = attemptedActions,
+            visibleTexts = currentUiTexts(),
+            controls = controls,
+            orderConstraints = readCurrentOrderConstraints(),
+            budget = budget,
+        )
+    }
+
+    private fun controlArea(bounds: Rect): String = when {
+        bounds.left < 264 -> "category"
+        bounds.top >= 2100 -> "bottom_action"
+        bounds.top >= 1400 -> "product_area"
+        else -> "header"
+    }
+
+    private fun deepSeek(apiKey: String, phase: String): DeepSeekClient = DeepSeekClient(
+        apiKey = apiKey,
+        queryBudget = queryBudget,
+        usageLedgerStore = usageLedgerStore,
+        queryId = queryId,
+        defaultPhase = phase,
+        usdToCnyRate = usdToCnyRate,
+    )
 
     private fun formatMoney(value: Double): String = "¥${"%.2f".format(value)}"
 
@@ -657,7 +924,7 @@ class MeituanAutomator(
                 orderConstraints = constraints,
             )
         }
-        val price = DeepSeekClient(apiKey).parseDrawerPrice(texts.joinToString("\n"), mode)
+        val price = deepSeek(apiKey, "parse_drawer_price").parseDrawerPrice(texts.joinToString("\n"), mode)
         return if (price != null) {
             MeituanModePrice(
                 mode,
@@ -736,7 +1003,7 @@ class MeituanAutomator(
             .filter { it.isNotBlank() }
             .distinct()
             .joinToString("\n")
-        val price = DeepSeekClient(apiKey).parseFinalPrice(texts)
+        val price = deepSeek(apiKey, "parse_final_price").parseFinalPrice(texts)
             ?: return PriceResult(resultPlatform, error = "解析最终价格失败（应包含配送费/打包费）")
         return PriceResult(
             resultPlatform,
@@ -1003,5 +1270,9 @@ class MeituanAutomator(
             }
         }
         return null
+    }
+
+    companion object {
+        private const val MAX_RECOVERY_STEPS = QueryBudget.MAX_RECOVERY_STEPS
     }
 }

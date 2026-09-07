@@ -2,6 +2,7 @@ package com.mahao.teapricecompare
 
 import android.content.Context
 import kotlinx.coroutines.delay
+import java.util.UUID
 
 /**
  * MVP entry point for the product idea: search Meituan, compare several real stores, and return
@@ -22,20 +23,55 @@ class MeituanMvpComparator(private val context: Context) {
             return MeituanComparisonResult(error = "美团比价需要先填写 DeepSeek API Key")
         }
 
-        val deliveryAutomator = MeituanAutomator(context, MeituanRoute.DELIVERY)
+        val queryId = UUID.randomUUID().toString()
+        val queryBudget = QueryBudget()
+        val usageLedger = UsageLedgerStore(context)
+        val usdToCnyRate = SettingsStore(context).usdToCnyRate
+        val deepSeek = DeepSeekClient(
+            apiKey = apiKey,
+            queryBudget = queryBudget,
+            usageLedgerStore = usageLedger,
+            queryId = queryId,
+            usdToCnyRate = usdToCnyRate,
+        )
+        val recoveryPlanner = AgentRecoveryPlanner(deepSeek, queryBudget)
+        fun result(
+            stores: List<MeituanStoreComparison> = emptyList(),
+            error: String? = null,
+        ): MeituanComparisonResult = MeituanComparisonResult(
+            stores = stores,
+            error = error,
+            queryId = queryId,
+            usageSummary = queryUsageSummary(queryBudget, usageLedger, queryId),
+            budgetExceeded = queryBudget.isExhausted(),
+        )
+
+        val deliveryAutomator = MeituanAutomator(
+            context = context,
+            route = MeituanRoute.DELIVERY,
+            queryBudget = queryBudget,
+            usageLedgerStore = usageLedger,
+            queryId = queryId,
+            recoveryPlanner = recoveryPlanner,
+            usdToCnyRate = usdToCnyRate,
+        )
         val search = deliveryAutomator.runSearch(target)
-        if (!search.isSuccess) return MeituanComparisonResult(error = search.error)
+        if (!search.isSuccess) return result(error = search.error)
 
         val candidates = deliveryAutomator.collectStoreCandidates(target.storeKeyword, maxStores)
         if (candidates.isEmpty()) {
-            return MeituanComparisonResult(error = "美团外卖结果页没有识别到候选店铺")
+            return result(error = "美团外卖结果页没有识别到候选店铺")
         }
 
         // Keep the list grounded in visible UI, but let Flash choose the most plausible first
         // candidate when several names contain the same brand keyword.
-        val preferredIndex = runCatching {
-            DeepSeekClient(apiKey).matchStore(target.storeKeyword, candidates)
-        }.getOrNull()?.takeIf { it in candidates.indices }
+        val preferredIndex = if (candidates.size > 1) {
+            runCatching {
+                deepSeek.matchStore(target.storeKeyword, candidates)
+            }.getOrNull()?.takeIf { it in candidates.indices }
+        } else {
+            null
+        }
         val orderedCandidates = preferredIndex?.let { index ->
             listOf(candidates[index]) + candidates.filterIndexed { candidateIndex, _ -> candidateIndex != index }
         } ?: candidates
@@ -45,7 +81,7 @@ class MeituanMvpComparator(private val context: Context) {
             if (index > 0) {
                 val clearResult = deliveryAutomator.clearCart()
                 if (!clearResult.isSuccess) {
-                    return MeituanComparisonResult(
+                    return result(
                         stores = orderedCandidates.mapNotNull(comparisons::get),
                         error = clearResult.reason ?: "美团购物车清空失败",
                     )
@@ -62,7 +98,15 @@ class MeituanMvpComparator(private val context: Context) {
         // delivery/pickup pass so the delivery result page can be reused for all candidates.
         orderedCandidates.forEach { storeName ->
             resetMeituanNavigation()
-            val voucherAutomator = MeituanAutomator(context, MeituanRoute.VOUCHER)
+            val voucherAutomator = MeituanAutomator(
+                context = context,
+                route = MeituanRoute.VOUCHER,
+                queryBudget = queryBudget,
+                usageLedgerStore = usageLedger,
+                queryId = queryId,
+                recoveryPlanner = recoveryPlanner,
+                usdToCnyRate = usdToCnyRate,
+            )
             val voucherResult = voucherAutomator.runFullFlow(
                 target.copy(storeKeyword = storeName),
                 apiKey,
@@ -76,9 +120,23 @@ class MeituanMvpComparator(private val context: Context) {
             }
         }
 
-        return MeituanComparisonResult(
+        return result(
             stores = orderedCandidates.mapNotNull(comparisons::get),
         )
+    }
+
+    private fun queryUsageSummary(
+        budget: QueryBudget,
+        ledger: UsageLedgerStore,
+        queryId: String,
+    ): UsageSummary {
+        val cny = ledger.readAll()
+            .asSequence()
+            .filter { it.queryId == queryId }
+            .sumOf { it.costCny }
+            .takeIf { it.isFinite() && it >= 0.0 }
+            ?: 0.0
+        return budget.usageSummary().copy(costCny = cny)
     }
 
     private suspend fun resetMeituanNavigation() {

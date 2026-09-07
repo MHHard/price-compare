@@ -94,6 +94,21 @@ class QueryBudget {
         return true
     }
 
+    @Synchronized
+    fun usageSummary(): UsageSummary = UsageSummary(
+        agentCalls = callsUsed,
+        totalTokens = totalTokensUsed,
+        costUsd = costUsdUsed,
+        costCny = 0.0,
+        recoverySteps = recoveryStepsUsed,
+    )
+
+    @Synchronized
+    fun isExhausted(): Boolean = callsUsed >= maxCalls ||
+        totalTokensUsed >= maxTotalTokens ||
+        costUsdUsed >= maxCostUsd ||
+        recoveryStepsUsed >= maxRecoverySteps
+
     private var inFlightCalls = 0
     private var inFlightTokens = 0L
     private var inFlightCostUsd = 0.0

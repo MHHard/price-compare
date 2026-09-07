@@ -43,6 +43,9 @@ data class MeituanStoreComparison(
 data class MeituanComparisonResult(
     val stores: List<MeituanStoreComparison> = emptyList(),
     val error: String? = null,
+    val queryId: String? = null,
+    val usageSummary: UsageSummary = UsageSummary(),
+    val budgetExceeded: Boolean = false,
 ) {
     val cheapest: Pair<MeituanStoreComparison, MeituanModePrice>?
         get() = stores.mapNotNull { store ->
