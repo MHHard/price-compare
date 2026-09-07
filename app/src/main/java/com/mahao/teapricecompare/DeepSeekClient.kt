@@ -8,17 +8,133 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
 
-/**
- * Thin client for DeepSeek's chat-completions API, used only for the two "fuzzy" steps that
- * plain resource-id/text matching can't handle robustly: picking the right store among several
- * similar search results, and parsing a final price out of an unfamiliar UI layout.
- */
-class DeepSeekClient(private val apiKey: String) {
+data class ChatCompletionResult(
+    val content: String? = null,
+    val usage: DeepSeekUsage? = null,
+    val model: String? = null,
+    val requestId: String? = null,
+    val responseCode: Int? = null,
+    val error: String? = null,
+) {
+    val success: Boolean
+        get() = error == null && responseCode != null && responseCode in 200..299
+}
 
-    private suspend fun chat(systemPrompt: String, userPrompt: String): String = withContext(Dispatchers.IO) {
+/** DeepSeek chat client with optional query-level accounting for Agent/Comparator integrations. */
+class DeepSeekClient(
+    private val apiKey: String,
+    private val queryBudget: QueryBudget? = null,
+    private val usageLedgerStore: UsageLedgerStore? = null,
+    private val queryId: String? = null,
+    private val defaultPhase: String = "deepseek",
+    private val priceCatalog: DeepSeekPriceCatalog = DeepSeekPriceCatalog.flashOffPeak,
+    private val usdToCnyRate: Double = SettingsStore.DEFAULT_USD_TO_CNY_RATE,
+) {
+
+    /** Public metadata-preserving entry point for later Agent/Comparator callers. */
+    suspend fun complete(
+        systemPrompt: String,
+        userPrompt: String,
+        phase: String = defaultPhase,
+        responseFormatJson: Boolean = false,
+        maxTokens: Int = DEFAULT_MAX_TOKENS,
+    ): ChatCompletionResult {
+        val boundedMaxTokens = maxTokens.coerceIn(1, MAX_REQUEST_MAX_TOKENS)
+        val estimatedPromptTokens = ((systemPrompt.length + userPrompt.length) / 4).coerceAtLeast(1)
+        val estimatedUsage = DeepSeekUsage(
+            promptTokens = estimatedPromptTokens,
+            completionTokens = boundedMaxTokens,
+            cacheMissTokens = estimatedPromptTokens,
+            totalTokens = estimatedPromptTokens + boundedMaxTokens,
+        )
+        if (queryBudget != null && !queryBudget.canStart(
+                estimatedUsage.totalTokens,
+                priceCatalog.cost(estimatedUsage),
+            )
+        ) {
+            return ChatCompletionResult(error = "Query budget exceeded before request")
+        }
+
+        val startedAt = System.currentTimeMillis()
+        val result = try {
+            withContext(Dispatchers.IO) {
+                performRequest(systemPrompt, userPrompt, responseFormatJson, boundedMaxTokens)
+            }
+        } catch (exception: Exception) {
+            ChatCompletionResult(error = sanitizeClientError(exception.message))
+        }
+        val usage = result.usage ?: DeepSeekUsage()
+        val costUsd = priceCatalog.cost(usage)
+        queryBudget?.record(usage, costUsd)
+        if (usageLedgerStore != null && queryId != null) {
+            val rate = usdToCnyRate.coerceAtLeast(0.0)
+            usageLedgerStore.append(
+                UsageLedgerRecord(
+                    queryId = queryId,
+                    requestId = result.requestId,
+                    apiRequestId = result.requestId,
+                    phase = phase,
+                    model = result.model ?: priceCatalog.model,
+                    startedAt = startedAt,
+                    durationMs = (System.currentTimeMillis() - startedAt).coerceAtLeast(0L),
+                    usage = usage,
+                    priceVersion = priceCatalog.priceVersion,
+                    billingPeriod = priceCatalog.billingPeriod,
+                    costUsd = costUsd,
+                    usdToCnyRate = rate,
+                    costCny = costUsd * rate,
+                    success = result.success,
+                    error = result.error,
+                ),
+            )
+        }
+        return result
+    }
+
+    /** Returns the best matching candidate index, or null when no candidate is plausible. */
+    suspend fun matchStore(storeKeyword: String, candidates: List<String>): Int? {
+        val numbered = candidates.mapIndexed { i, name -> "$i: $name" }.joinToString("\n")
+        val result = complete(
+            systemPrompt = "你是外卖店铺名称匹配助手。只回复一个数字（候选编号）或者 -1（如果没有合理匹配），不要输出任何其他文字。",
+            userPrompt = "目标店铺关键词：$storeKeyword\n候选列表：\n$numbered",
+            phase = "match_store",
+            maxTokens = 32,
+        )
+        return result.content?.trim()?.toIntOrNull()?.takeIf { it in candidates.indices }
+    }
+
+    /** Extracts the final payable price from raw UI text. */
+    suspend fun parseFinalPrice(uiText: String): Double? {
+        val result = complete(
+            systemPrompt = "你是外卖订单价格解析助手。根据给出的界面文字片段，找出用户最终需要支付的价格（合计/应付/实付，已包含配送费、已减去优惠券）。只回复一个数字，单位是元，不要带货币符号，如果找不到就回复 -1，不要输出任何其他文字。",
+            userPrompt = uiText,
+            phase = "parse_final_price",
+            maxTokens = 32,
+        )
+        return result.content?.trim()?.toDoubleOrNull()?.takeIf { it >= 0 }
+    }
+
+    suspend fun parseDrawerPrice(uiText: String, mode: MeituanRoute): Double? {
+        val result = complete(
+            systemPrompt = "你是美团购物车价格解析助手。当前模式是${if (mode == MeituanRoute.PICKUP) "自取" else "外送"}。只提取当前模式底部购物车的用户实际需要支付金额：优先读取‘到手约’、‘合计’或‘应付’后的金额；外送如果显示‘差xx起送’或‘再买xx可达起送’，说明暂时不能下单，回复 -1。不要读取商品原价、优惠金额、配送费单项或起送差额。只回复数字，找不到回复 -1。",
+            userPrompt = uiText,
+            phase = "parse_drawer_price",
+            maxTokens = 32,
+        )
+        return result.content?.trim()?.toDoubleOrNull()?.takeIf { it >= 0 }
+    }
+
+    private fun performRequest(
+        systemPrompt: String,
+        userPrompt: String,
+        responseFormatJson: Boolean,
+        maxTokens: Int,
+    ): ChatCompletionResult {
         val requestBody = JSONObject().apply {
-            put("model", "deepseek-v4-flash")
+            put("model", priceCatalog.model)
             put("temperature", 0)
+            put("max_tokens", maxTokens)
+            if (responseFormatJson) put("response_format", JSONObject().put("type", "json_object"))
             put(
                 "messages",
                 JSONArray().apply {
@@ -28,57 +144,77 @@ class DeepSeekClient(private val apiKey: String) {
             )
         }
 
-        val connection = URL("https://api.deepseek.com/chat/completions").openConnection() as HttpURLConnection
-        try {
+        val connection = URL(API_URL).openConnection() as HttpURLConnection
+        return try {
             connection.requestMethod = "POST"
             connection.doOutput = true
+            connection.connectTimeout = CONNECT_TIMEOUT_MS
+            connection.readTimeout = READ_TIMEOUT_MS
             connection.setRequestProperty("Content-Type", "application/json")
             connection.setRequestProperty("Authorization", "Bearer $apiKey")
             connection.outputStream.use { it.write(requestBody.toString().toByteArray(StandardCharsets.UTF_8)) }
 
             val responseCode = connection.responseCode
             val stream = if (responseCode in 200..299) connection.inputStream else connection.errorStream
-            val responseText = stream.bufferedReader(StandardCharsets.UTF_8).use { it.readText() }
-            if (responseCode !in 200..299) {
-                throw IllegalStateException("DeepSeek API error $responseCode: $responseText")
-            }
-            JSONObject(responseText)
-                .getJSONArray("choices")
-                .getJSONObject(0)
-                .getJSONObject("message")
-                .getString("content")
+            val responseText = stream?.bufferedReader(StandardCharsets.UTF_8)?.use { it.readText() }.orEmpty()
+            parseChatCompletionResponse(responseText, responseCode)
         } finally {
             connection.disconnect()
         }
     }
 
-    /**
-     * Given a list of candidate store names from a search-results page, returns the index of the
-     * one that best matches [storeKeyword], or null if none plausibly match.
-     */
-    suspend fun matchStore(storeKeyword: String, candidates: List<String>): Int? {
-        val numbered = candidates.mapIndexed { i, name -> "$i: $name" }.joinToString("\n")
-        val content = chat(
-            systemPrompt = "你是外卖店铺名称匹配助手。只回复一个数字（候选编号）或者 -1（如果没有合理匹配），不要输出任何其他文字。",
-            userPrompt = "目标店铺关键词：$storeKeyword\n候选列表：\n$numbered",
-        )
-        return content.trim().toIntOrNull()?.takeIf { it in candidates.indices }
+    internal fun parseChatCompletionResponse(responseText: String, responseCode: Int): ChatCompletionResult {
+        val json = runCatching { JSONObject(responseText) }.getOrNull()
+        val usage = json?.optJSONObject("usage")?.let(DeepSeekUsage::fromJson)
+        val model = json?.optString("model")?.takeIf { it.isNotBlank() }
+        val requestId = json?.optString("id")?.takeIf { it.isNotBlank() }
+        if (responseCode !in 200..299) {
+            val apiMessage = json?.optJSONObject("error")?.optString("message")
+                ?.takeIf { it.isNotBlank() }
+            return ChatCompletionResult(
+                usage = usage,
+                model = model,
+                requestId = requestId,
+                responseCode = responseCode,
+                error = sanitizeClientError(apiMessage ?: "DeepSeek API error $responseCode"),
+            )
+        }
+        val content = json?.optJSONArray("choices")
+            ?.optJSONObject(0)
+            ?.optJSONObject("message")
+            ?.optString("content")
+            ?.takeIf { it.isNotBlank() }
+        return if (json == null || content == null) {
+            ChatCompletionResult(
+                usage = usage,
+                model = model,
+                requestId = requestId,
+                responseCode = responseCode,
+                error = "Invalid DeepSeek response",
+            )
+        } else {
+            ChatCompletionResult(
+                content = content,
+                usage = usage,
+                model = model,
+                requestId = requestId,
+                responseCode = responseCode,
+            )
+        }
     }
 
-    /** Extracts the final payable price (already including delivery fee / minus coupons) from raw UI text. */
-    suspend fun parseFinalPrice(uiText: String): Double? {
-        val content = chat(
-            systemPrompt = "你是外卖订单价格解析助手。根据给出的界面文字片段，找出用户最终需要支付的价格（合计/应付/实付，已包含配送费、已减去优惠券）。只回复一个数字，单位是元，不要带货币符号，如果找不到就回复 -1，不要输出任何其他文字。",
-            userPrompt = uiText,
-        )
-        return content.trim().toDoubleOrNull()?.takeIf { it >= 0 }
-    }
-
-    suspend fun parseDrawerPrice(uiText: String, mode: MeituanRoute): Double? {
-        val content = chat(
-            systemPrompt = "你是美团购物车价格解析助手。当前模式是${if (mode == MeituanRoute.PICKUP) "自取" else "外送"}。只提取当前模式底部购物车的用户实际需要支付金额：优先读取‘到手约’、‘合计’或‘应付’后的金额；外送如果显示‘差xx起送’或‘再买xx可达起送’，说明暂时不能下单，回复 -1。不要读取商品原价、优惠金额、配送费单项或起送差额。只回复数字，找不到回复 -1。",
-            userPrompt = uiText,
-        )
-        return content.trim().toDoubleOrNull()?.takeIf { it >= 0 }
+    companion object {
+        private const val API_URL = "https://api.deepseek.com/chat/completions"
+        private const val CONNECT_TIMEOUT_MS = 15_000
+        private const val READ_TIMEOUT_MS = 30_000
+        private const val DEFAULT_MAX_TOKENS = 512
+        private const val MAX_REQUEST_MAX_TOKENS = 2_048
     }
 }
+
+private fun sanitizeClientError(error: String?): String =
+    (error ?: "DeepSeek request failed")
+        .replace(Regex("(?i)authorization\\s*:\\s*[^,;\\s]+"), "authorization: [redacted]")
+        .replace(Regex("(?i)bearer\\s+[A-Za-z0-9._-]+"), "Bearer [redacted]")
+        .replace(Regex("(?i)sk-[A-Za-z0-9_-]+"), "[redacted-key]")
+        .take(500)
