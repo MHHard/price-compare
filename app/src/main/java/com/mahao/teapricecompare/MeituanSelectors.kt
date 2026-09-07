@@ -15,6 +15,8 @@ object MeituanSelectors {
     private const val DELIVERY_SEARCH_INPUT_ID = ":id/il5"
     private const val DELIVERY_RESULT_PAGE_ID = ":id/result_view_pager"
     private const val DELIVERY_RESULT_LIST_ID = ":id/s9d"
+    private val EMPTY_CART_MARKERS = setOf("购物车是空的", "购物车为空", "暂无商品", "还没有商品", "空空如也")
+    private val CART_ENTRY_LABELS = setOf("购物车", "查看购物车", "已加购商品")
 
     fun isSearchHome(node: AccessibilityNodeInfo): Boolean =
         hasId(node, SEARCH_HOME_ID) ||
@@ -113,6 +115,72 @@ object MeituanSelectors {
 
     fun isCartDrawerMarker(text: String?, contentDescription: String?): Boolean =
         text == "已加购商品" || contentDescription == "已加购商品"
+
+    fun isCartEntry(text: String?, contentDescription: String?, resourceId: String?): Boolean =
+        text in CART_ENTRY_LABELS ||
+            contentDescription in CART_ENTRY_LABELS ||
+            resourceId?.let {
+                it.endsWith(":id/cart") ||
+                    it.endsWith(":id/shopping_cart") ||
+                    it.endsWith(":id/cart_icon")
+            } == true
+
+    fun isEmptyCartMarker(text: String?, contentDescription: String?): Boolean =
+        listOfNotNull(text, contentDescription).any { value ->
+            EMPTY_CART_MARKERS.any(value::contains)
+        }
+
+    fun isCartClearAction(text: String?, contentDescription: String?): Boolean =
+        text == "清空购物车" || contentDescription == "清空购物车"
+
+    fun isCartMinusControl(text: String?, contentDescription: String?, resourceId: String?): Boolean =
+        text == "减" ||
+            contentDescription?.contains("减少") == true ||
+            contentDescription?.contains("减商品") == true ||
+            resourceId?.let {
+                it.endsWith(":id/minus") ||
+                    it.endsWith(":id/sub") ||
+                    it.endsWith(":id/decrease") ||
+                    it.endsWith(":id/quantity_minus")
+            } == true
+
+    fun isCartProductRow(
+        productName: String?,
+        quantityText: String?,
+        hasMinusControl: Boolean,
+        storeName: String?,
+        expectedStoreKeyword: String? = null,
+    ): Boolean {
+        val normalizedStore = storeName?.trim().orEmpty()
+        val expectedStore = expectedStoreKeyword?.trim().orEmpty()
+        return productName?.trim()?.isNotBlank() == true &&
+            parseCartQuantity(quantityText) > 0 &&
+            hasMinusControl &&
+            normalizedStore.isNotBlank() &&
+            (expectedStore.isBlank() || normalizedStore.contains(expectedStore))
+    }
+
+    fun parseCartQuantity(text: String?): Int {
+        val normalized = text?.trim()?.removePrefix("x")?.removePrefix("×") ?: return 0
+        return normalized.toIntOrNull()?.takeIf { it >= 0 } ?: 0
+    }
+
+    fun isCartQuantityText(text: String?): Boolean = parseCartQuantity(text) > 0
+
+    fun isCartProductNameCandidate(text: String?, storeName: String? = null): Boolean {
+        val value = text?.trim().orEmpty()
+        if (value.isBlank() || value == storeName?.trim()) return false
+        if (isCartQuantityText(value)) return false
+        if (isEmptyCartMarker(value, null) || isCartClearAction(value, null)) return false
+        if (value in CART_ENTRY_LABELS || value == "去结算" || value == "明细") return false
+        if (value == "减" || value.contains("减少") || value.contains("删除")) return false
+        return true
+    }
+
+    fun isCartStoreNameCandidate(text: String?): Boolean {
+        val value = text?.trim().orEmpty()
+        return value.isNotBlank() && (value.contains("店") || value.contains("门店"))
+    }
 
     fun isCartSummaryMarker(text: String?, contentDescription: String?): Boolean =
         text == "明细" ||

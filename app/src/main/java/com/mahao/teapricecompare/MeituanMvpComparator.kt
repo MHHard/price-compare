@@ -42,6 +42,15 @@ class MeituanMvpComparator(private val context: Context) {
 
         val comparisons = linkedMapOf<String, MeituanStoreComparison>()
         for ((index, storeName) in orderedCandidates.withIndex()) {
+            if (index > 0) {
+                val clearResult = deliveryAutomator.clearCart()
+                if (!clearResult.isSuccess) {
+                    return MeituanComparisonResult(
+                        stores = orderedCandidates.mapNotNull(comparisons::get),
+                        error = clearResult.reason ?: "美团购物车清空失败",
+                    )
+                }
+            }
             val comparison = deliveryAutomator.compareCurrentDeliveryStore(target, storeName, apiKey)
             comparisons[storeName] = comparison
             if (index < orderedCandidates.lastIndex && !deliveryAutomator.leaveStoreToSearchResults()) {
@@ -53,7 +62,8 @@ class MeituanMvpComparator(private val context: Context) {
         // delivery/pickup pass so the delivery result page can be reused for all candidates.
         orderedCandidates.forEach { storeName ->
             resetMeituanNavigation()
-            val voucherResult = MeituanAutomator(context, MeituanRoute.VOUCHER).runFullFlow(
+            val voucherAutomator = MeituanAutomator(context, MeituanRoute.VOUCHER)
+            val voucherResult = voucherAutomator.runFullFlow(
                 target.copy(storeKeyword = storeName),
                 apiKey,
             )

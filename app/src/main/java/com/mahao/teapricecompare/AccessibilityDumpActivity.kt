@@ -43,6 +43,7 @@ class AccessibilityDumpActivity : AppCompatActivity() {
             }
         }
         findViewById<View>(R.id.testMeituanSearchButton).setOnClickListener {
+            if (!requireMeituanConsent()) return@setOnClickListener
             if (!TeaAccessibilityService.isEnabled(this)) {
                 toastServiceRequired(); return@setOnClickListener
             }
@@ -54,6 +55,7 @@ class AccessibilityDumpActivity : AppCompatActivity() {
             }
         }
         findViewById<View>(R.id.testMeituanStoreButton).setOnClickListener {
+            if (!requireMeituanConsent()) return@setOnClickListener
             if (!TeaAccessibilityService.isEnabled(this)) {
                 toastServiceRequired(); return@setOnClickListener
             }
@@ -65,6 +67,7 @@ class AccessibilityDumpActivity : AppCompatActivity() {
             }
         }
         findViewById<View>(R.id.testMeituanFullFlowButton).setOnClickListener {
+            if (!requireMeituanConsent()) return@setOnClickListener
             if (!TeaAccessibilityService.isEnabled(this)) {
                 toastServiceRequired(); return@setOnClickListener
             }
@@ -81,6 +84,7 @@ class AccessibilityDumpActivity : AppCompatActivity() {
             }
         }
         findViewById<View>(R.id.testMeituanDeliveryButton).setOnClickListener {
+            if (!requireMeituanConsent()) return@setOnClickListener
             if (!TeaAccessibilityService.isEnabled(this)) {
                 toastServiceRequired(); return@setOnClickListener
             }
@@ -99,6 +103,7 @@ class AccessibilityDumpActivity : AppCompatActivity() {
             }
         }
         findViewById<View>(R.id.testMeituanPickupButton).setOnClickListener {
+            if (!requireMeituanConsent()) return@setOnClickListener
             if (!TeaAccessibilityService.isEnabled(this)) {
                 toastServiceRequired(); return@setOnClickListener
             }
@@ -145,6 +150,16 @@ class AccessibilityDumpActivity : AppCompatActivity() {
 
     private fun toastServiceRequired() {
         Toast.makeText(this, getString(R.string.toast_service_required), Toast.LENGTH_SHORT).show()
+    }
+
+    private fun requireMeituanConsent(): Boolean {
+        if (MeituanCartController().canCompare) return true
+        Toast.makeText(
+            this,
+            getString(R.string.meituan_cart_consent_required),
+            Toast.LENGTH_SHORT,
+        ).show()
+        return false
     }
 
     private fun readKeywords(): Pair<String, String>? {

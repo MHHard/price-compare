@@ -91,6 +91,9 @@ class MeituanAutomator(
         storeName: String,
         apiKey: String,
     ): MeituanStoreComparison {
+        if (!MeituanCartController().canCompare) {
+            return unavailableStoreComparison(storeName, null, "需要先同意清空美团购物车后才能自动比价")
+        }
         val opened = openDeliveryStoreByName(storeName, target.storeKeyword)
         if (!opened.isSuccess) {
             return unavailableStoreComparison(storeName, null, opened.error ?: "进入店铺失败")
@@ -147,6 +150,9 @@ class MeituanAutomator(
 
     /** Full flow: search, open store, add the drink to cart, go to checkout, read the final total (never pays). */
     suspend fun runFullFlow(target: PlatformTarget, apiKey: String): PriceResult {
+        if (!MeituanCartController().canCompare) {
+            return PriceResult(resultPlatform, error = "需要先同意清空美团购物车后才能自动比价")
+        }
         if (target.productKeyword.isBlank()) {
             return PriceResult(resultPlatform, error = "美团饮品关键词不能为空")
         }
@@ -183,6 +189,8 @@ class MeituanAutomator(
 
         return readFinalPriceViaAi(apiKey, merchantDistance, modePrices)
     }
+
+    suspend fun clearCart(): CartClearResult = MeituanCartController().clearCart()
 
     private suspend fun findProductNode(productKeyword: String, maxScrolls: Int = 5): AccessibilityNodeInfo? {
         findProductInCurrentCategory(productKeyword, maxScrolls)?.let { return it }
@@ -545,6 +553,9 @@ class MeituanAutomator(
         if (target.storeKeyword.isBlank()) {
             return MeituanSearchResult("美团店铺关键词不能为空")
         }
+        if (!MeituanCartController().canCompare) {
+            return MeituanSearchResult("需要先同意清空美团购物车后才能自动比价")
+        }
 
         val launchIntent = context.packageManager
             .getLaunchIntentForPackage(Platform.MEITUAN.packageName)
@@ -555,6 +566,12 @@ class MeituanAutomator(
         if (waitForNode(5000) { it.packageName?.toString() == Platform.MEITUAN.packageName } == null) {
             return MeituanSearchResult("美团没有切到前台")
         }
+
+        val clearResult = clearCart()
+        if (!clearResult.isSuccess) {
+            return MeituanSearchResult(clearResult.reason ?: "美团购物车清空失败")
+        }
+        leaveCartAfterClear()
 
         if (route != MeituanRoute.VOUCHER) {
             // 外卖首页本身也会暴露一个 desc="外卖" 的频道图标。先判断搜索框，避免
@@ -636,6 +653,16 @@ class MeituanAutomator(
         TeaAccessibilityService.captureCurrentWindow(Platform.MEITUAN.packageName)
             ?: return MeituanSearchResult("已进入美团结果页，但没有抓到节点树")
         return MeituanSearchResult()
+    }
+
+    private suspend fun leaveCartAfterClear() {
+        if (TeaAccessibilityService.findNode { node ->
+            MeituanSelectors.isCartDrawerMarker(node.text?.toString(), node.contentDescription?.toString()) ||
+                MeituanSelectors.isEmptyCartMarker(node.text?.toString(), node.contentDescription?.toString()) ||
+                MeituanSelectors.isCartClearAction(node.text?.toString(), node.contentDescription?.toString())
+        } == null) return
+        TeaAccessibilityService.pressBack()
+        delay(500)
     }
 
     private suspend fun openFirstStore(storeKeyword: String): MeituanSearchResult {

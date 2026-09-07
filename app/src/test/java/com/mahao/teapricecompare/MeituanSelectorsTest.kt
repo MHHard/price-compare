@@ -176,4 +176,59 @@ class MeituanSelectorsTest {
         assertEquals("距您 904m", MeituanSelectors.extractMerchantDistance(listOf("美团快送", "距您 904m")))
         assertEquals("距您 1.2公里", MeituanSelectors.extractMerchantDistance(listOf("距您 1.2 公里")))
     }
+
+    @Test
+    fun cartRowRequiresProductQuantityMinusAndKnownStore() {
+        assertTrue(
+            MeituanSelectors.isCartProductRow(
+                productName = "芝芝莓莓",
+                quantityText = "2",
+                hasMinusControl = true,
+                storeName = "喜茶人民广场店",
+                expectedStoreKeyword = "喜茶",
+            ),
+        )
+        assertFalse(
+            MeituanSelectors.isCartProductRow(
+                productName = "芝芝莓莓",
+                quantityText = "2",
+                hasMinusControl = true,
+                storeName = "蜜雪冰城浦江店",
+                expectedStoreKeyword = "喜茶",
+            ),
+        )
+        assertFalse(
+            MeituanSelectors.isCartProductRow(
+                productName = "未知行",
+                quantityText = "2",
+                hasMinusControl = false,
+                storeName = "喜茶人民广场店",
+                expectedStoreKeyword = "喜茶",
+            ),
+        )
+        assertFalse(
+            MeituanSelectors.isCartProductRow(
+                productName = null,
+                quantityText = "2",
+                hasMinusControl = true,
+                storeName = "喜茶人民广场店",
+                expectedStoreKeyword = "喜茶",
+            ),
+        )
+    }
+
+    @Test
+    fun emptyCartMarkersAreRecognizedButOrdinaryCartTextIsNot() {
+        assertTrue(MeituanSelectors.isEmptyCartMarker("购物车是空的", null))
+        assertTrue(MeituanSelectors.isEmptyCartMarker(null, "暂无商品"))
+        assertFalse(MeituanSelectors.isEmptyCartMarker("购物车", null))
+    }
+
+    @Test
+    fun cartMinusControlRequiresAnExplicitDecreaseMeaning() {
+        assertTrue(MeituanSelectors.isCartMinusControl("减", null, null))
+        assertTrue(MeituanSelectors.isCartMinusControl(null, "减少商品", null))
+        assertTrue(MeituanSelectors.isCartMinusControl(null, null, "com.sankuai.meituan:id/minus"))
+        assertFalse(MeituanSelectors.isCartMinusControl("删除", null, null))
+    }
 }

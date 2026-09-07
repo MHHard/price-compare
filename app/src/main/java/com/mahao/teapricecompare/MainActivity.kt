@@ -7,6 +7,7 @@ import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -17,6 +18,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var store: FavoriteOrderStore
     private lateinit var adapter: FavoriteOrderAdapter
+    private val cartController = MeituanCartController()
     private var lastAccessibilityEnabled: Boolean? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -88,6 +90,8 @@ class MainActivity : AppCompatActivity() {
             bottom = findViewById(R.id.bottomBar),
             extraBottomDp = 8,
         )
+
+        showMeituanCartConsentIfNeeded()
     }
 
     override fun onResume() {
@@ -127,6 +131,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun openMeituanCompare(target: PlatformTarget) {
+        if (!cartController.canCompare) {
+            Snackbar.make(
+                window.decorView,
+                getString(R.string.meituan_cart_consent_required),
+                Snackbar.LENGTH_LONG,
+            ).show()
+            return
+        }
         startActivity(
             Intent(this, MeituanCompareActivity::class.java)
                 .putExtra(MeituanCompareActivity.EXTRA_STORE_KEYWORD, target.storeKeyword)
@@ -145,6 +157,21 @@ class MainActivity : AppCompatActivity() {
                     .putExtra(FavoriteOrderEditActivity.EXTRA_ORDER_ID, order.id),
             )
         }.show()
+    }
+
+    private fun showMeituanCartConsentIfNeeded() {
+        if (cartController.canCompare) return
+        AlertDialog.Builder(this)
+            .setTitle(R.string.meituan_cart_consent_title)
+            .setMessage(R.string.meituan_cart_consent_message)
+            .setNegativeButton(R.string.meituan_cart_consent_reject) { _, _ ->
+                cartController.rejectConsent()
+            }
+            .setPositiveButton(R.string.meituan_cart_consent_accept) { _, _ ->
+                cartController.acceptConsent()
+            }
+            .setCancelable(false)
+            .show()
     }
 
     private fun Map<Platform, PlatformTarget>.meituanTarget(): PlatformTarget? =
