@@ -231,4 +231,49 @@ class MeituanSelectorsTest {
         assertTrue(MeituanSelectors.isCartMinusControl(null, null, "com.sankuai.meituan:id/minus"))
         assertFalse(MeituanSelectors.isCartMinusControl("删除", null, null))
     }
+
+    @Test
+    fun productPriceParserIgnoresFeesDiscountsAndOrderGap() {
+        assertEquals(12.8, MeituanSelectors.parseProductPrice("¥12.80"))
+        assertEquals(6.0, MeituanSelectors.parseProductPrice("6元起"))
+        assertEquals(null, MeituanSelectors.parseProductPrice("差¥8起送"))
+        assertEquals(null, MeituanSelectors.parseProductPrice("配送费¥3"))
+        assertEquals(null, MeituanSelectors.parseProductPrice("满30减5"))
+    }
+
+    @Test
+    fun productCandidateRequiresARealName() {
+        assertTrue(MeituanSelectors.isProductNameCandidate("芝芝莓莓"))
+        assertFalse(MeituanSelectors.isProductNameCandidate("选规格"))
+        assertFalse(MeituanSelectors.isProductNameCandidate("月售1000"))
+        assertFalse(MeituanSelectors.isProductNameCandidate("¥12.80"))
+        assertTrue(MeituanSelectors.isProductAddAction("选规格", null))
+        assertTrue(MeituanSelectors.isProductAddAction(null, "加入购物车"))
+        assertFalse(MeituanSelectors.isProductAddAction("查看详情", null))
+    }
+
+    @Test
+    fun orderConstraintsReadGapAndFeesFromCartTexts() {
+        val constraints = MeituanSelectors.parseOrderConstraints(
+            listOf("商品小计¥10.00", "配送费¥3", "打包费¥1", "还差¥8起送"),
+        )
+
+        assertEquals(10.0, constraints?.subtotal)
+        assertEquals(8.0, constraints?.gap)
+        assertEquals(3.0, constraints?.deliveryFee)
+        assertEquals(1.0, constraints?.packingFee)
+        assertEquals(false, constraints?.isOrderable)
+    }
+
+    @Test
+    fun orderConstraintsUseMinimumOrderAndCheckoutMarker() {
+        val constraints = MeituanSelectors.parseOrderConstraints(
+            listOf("商品小计", "¥20.00", "¥18起送", "去结算"),
+        )
+
+        assertEquals(20.0, constraints?.subtotal)
+        assertEquals(18.0, constraints?.minimumOrder)
+        assertEquals(0.0, constraints?.gap)
+        assertEquals(true, constraints?.isOrderable)
+    }
 }

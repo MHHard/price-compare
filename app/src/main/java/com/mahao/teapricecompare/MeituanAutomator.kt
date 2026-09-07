@@ -103,10 +103,29 @@ class MeituanAutomator(
         if (!addResult.isSuccess) {
             return unavailableStoreComparison(storeName, distance, addResult.error ?: "商品加入购物车失败")
         }
+        val pickupBeforeBundle = if (route == MeituanRoute.DELIVERY) {
+            if (!openCartDrawerAndSelectMode()) {
+                return unavailableStoreComparison(storeName, distance, "没有打开底部购物车抽屉")
+            }
+            captureDrawerModePrice(MeituanRoute.PICKUP, target.productKeyword, apiKey)
+        } else {
+            null
+        }
+        val localBundle = if (route == MeituanRoute.DELIVERY) {
+            ensureMinimumOrder(target)
+        } else {
+            LocalBundleResult()
+        }
         if (!openCartDrawerAndSelectMode()) {
             return unavailableStoreComparison(storeName, distance, "没有打开底部购物车抽屉")
         }
-        val prices = captureBothModePrices(target.productKeyword, apiKey, distance)
+        val prices = captureBothModePrices(
+            target.productKeyword,
+            apiKey,
+            distance,
+            localBundle,
+            pickupBeforeBundle,
+        )
         return MeituanStoreComparison(
             storeName = storeName,
             merchantDistance = distance,
@@ -165,6 +184,23 @@ class MeituanAutomator(
             return PriceResult(resultPlatform, error = addResult.error)
         }
 
+        val pickupBeforeBundle = if (route == MeituanRoute.DELIVERY) {
+            if (!openCartDrawerAndSelectMode()) {
+                return PriceResult(
+                    resultPlatform,
+                    error = "商品已加入购物车，但没有打开底部购物车抽屉",
+                    merchantDistance = merchantDistance,
+                )
+            }
+            captureDrawerModePrice(MeituanRoute.PICKUP, target.productKeyword, apiKey)
+        } else {
+            null
+        }
+        val localBundle = if (route == MeituanRoute.DELIVERY) {
+            ensureMinimumOrder(target)
+        } else {
+            LocalBundleResult()
+        }
         val modePrices = if (route != MeituanRoute.VOUCHER) {
             if (!openCartDrawerAndSelectMode()) {
                 return PriceResult(
@@ -173,7 +209,13 @@ class MeituanAutomator(
                     merchantDistance = merchantDistance,
                 )
             }
-            captureBothModePrices(target.productKeyword, apiKey, merchantDistance)
+            captureBothModePrices(
+                target.productKeyword,
+                apiKey,
+                merchantDistance,
+                localBundle,
+                pickupBeforeBundle,
+            )
         } else {
             null
         }
@@ -320,14 +362,134 @@ class MeituanAutomator(
         }
     }
 
-    private suspend fun addProductToCart(productKeyword: String): MeituanStepResult {
-        val product = findProductNode(productKeyword)
-            ?: return MeituanStepResult.failure("店铺里没有找到「$productKeyword」")
+    private data class LocalBundleResult(
+        val candidates: List<ProductCandidate> = emptyList(),
+        val orderConstraints: OrderConstraints? = null,
+        val error: String? = null,
+    )
+
+    /**
+     * The delivery minimum is handled with visible, locally verified products first. This method
+     * deliberately returns a failure detail instead of inventing a product; the later recovery
+     * Agent can use that detail when this deterministic path has no safe answer.
+     */
+    private suspend fun ensureMinimumOrder(target: PlatformTarget): LocalBundleResult {
+        if (!openCartDrawerAndSelectMode()) {
+            return LocalBundleResult(error = "没有打开购物车，无法读取外送起送状态")
+        }
+
+        var constraints = readCurrentOrderConstraints()
+        if (constraints?.isOrderable == true) {
+            return LocalBundleResult(orderConstraints = constraints)
+        }
+        if (constraints == null) {
+            return LocalBundleResult(error = "无法识别外送起送状态，未自动添加凑单商品")
+        }
+        if (constraints.gap <= 0.0) {
+            return LocalBundleResult(
+                orderConstraints = constraints,
+                error = "外送起送差额无法可靠识别，未自动添加凑单商品",
+            )
+        }
+
+        val scan = MeituanProductScanner.scan(target.productKeyword)
+        val plan = BundleCalculator.choose(scan.candidates, constraints.gap)
+            ?: return LocalBundleResult(
+                candidates = scan.candidates,
+                orderConstraints = constraints,
+                error = scan.error ?: "外送还差${formatMoney(constraints.gap)}，没有找到可验证的凑单组合",
+            )
+
+        if (!TeaAccessibilityService.pressBack()) {
+            return LocalBundleResult(
+                candidates = scan.candidates,
+                orderConstraints = constraints,
+                error = "已找到凑单组合，但无法返回商品列表",
+            )
+        }
+        delay(500)
+
+        for ((index, candidate) in plan.items.withIndex()) {
+            val addResult = addProductToCart(candidate)
+            if (!addResult.isSuccess) {
+                return LocalBundleResult(
+                    candidates = scan.candidates,
+                    orderConstraints = constraints,
+                    error = "凑单商品「${candidate.name}」${addResult.error ?: "加入失败"}",
+                )
+            }
+            if (!openCartDrawerAndSelectMode()) {
+                return LocalBundleResult(
+                    candidates = scan.candidates,
+                    orderConstraints = constraints,
+                    error = "凑单商品已尝试加入，但无法重新读取购物车",
+                )
+            }
+            constraints = readCurrentOrderConstraints()
+                ?: return LocalBundleResult(
+                    candidates = scan.candidates,
+                    error = "凑单后无法识别外送起送状态",
+                )
+            if (constraints.isOrderable) {
+                return LocalBundleResult(
+                    candidates = scan.candidates,
+                    orderConstraints = constraints,
+                )
+            }
+            if (constraints.gap <= 0.0) {
+                return LocalBundleResult(
+                    candidates = scan.candidates,
+                    orderConstraints = constraints,
+                    error = "凑单后起送状态仍无法可靠确认",
+                )
+            }
+            if (index < plan.items.lastIndex) {
+                if (!TeaAccessibilityService.pressBack()) {
+                    return LocalBundleResult(
+                        candidates = scan.candidates,
+                        orderConstraints = constraints,
+                        error = "凑单过程中无法返回商品列表",
+                    )
+                }
+                delay(500)
+            }
+        }
+
+        return LocalBundleResult(
+            candidates = scan.candidates,
+            orderConstraints = constraints,
+            error = "外送还差${formatMoney(constraints.gap)}，本地凑单后仍未达到起送价",
+        )
+    }
+
+    private fun readCurrentOrderConstraints(): OrderConstraints? =
+        MeituanSelectors.parseOrderConstraints(currentUiTexts())
+
+    private fun currentUiTexts(): List<String> = TeaAccessibilityService.findAllNodes { true }
+        .flatMap { listOfNotNull(it.text?.toString(), it.contentDescription?.toString()) }
+        .map(String::trim)
+        .filter(String::isNotBlank)
+        .distinct()
+
+    private fun formatMoney(value: Double): String = "¥${"%.2f".format(value)}"
+
+    private suspend fun addProductToCart(productKeyword: String): MeituanStepResult =
+        addProductToCart(
+            ProductCandidate(
+                name = productKeyword,
+                isTarget = true,
+                isAddable = true,
+            ),
+        )
+
+    private suspend fun addProductToCart(candidate: ProductCandidate): MeituanStepResult {
+        val product = findProductNode(candidate.name)
+            ?: return MeituanStepResult.failure("店铺里没有找到「${candidate.name}」")
         val addControl = findAddToCartControl(product)
-            ?: return MeituanStepResult.failure("找到了「$productKeyword」，但没有找到对应的「选规格」入口")
+            ?: return MeituanStepResult.failure("找到了「${candidate.name}」，但没有找到对应的「选规格」入口")
         val bounds = Rect().also { addControl.getBoundsInScreen(it) }
         if (!TeaAccessibilityService.tap(bounds.centerX(), bounds.centerY())) {
-            return MeituanStepResult.failure("点击「$productKeyword」的「选规格」入口失败")
+            return MeituanStepResult.failure("点击「${candidate.name}」的「选规格」入口失败")
         }
         delay(800)
 
@@ -447,9 +609,21 @@ class MeituanAutomator(
         productKeyword: String,
         apiKey: String,
         merchantDistance: String?,
+        localBundle: LocalBundleResult = LocalBundleResult(),
+        pickupBeforeBundle: MeituanModePrice? = null,
     ): MeituanPriceSnapshot {
-        val delivery = captureDrawerModePrice(MeituanRoute.DELIVERY, productKeyword, apiKey)
-        val pickup = captureDrawerModePrice(MeituanRoute.PICKUP, productKeyword, apiKey)
+        val delivery = captureDrawerModePrice(
+            mode = MeituanRoute.DELIVERY,
+            productKeyword = productKeyword,
+            apiKey = apiKey,
+            localBundle = localBundle,
+        )
+        val pickup = pickupBeforeBundle ?: captureDrawerModePrice(
+            mode = MeituanRoute.PICKUP,
+            productKeyword = productKeyword,
+            apiKey = apiKey,
+            localBundle = localBundle,
+        )
         selectDrawerMode(route)
         return MeituanPriceSnapshot(
             delivery = delivery,
@@ -462,23 +636,46 @@ class MeituanAutomator(
         mode: MeituanRoute,
         productKeyword: String,
         apiKey: String,
+        localBundle: LocalBundleResult = LocalBundleResult(),
     ): MeituanModePrice {
         if (!selectDrawerMode(mode)) {
-            return MeituanModePrice(mode, error = "没有找到${mode.displayName()} Tab")
+            return MeituanModePrice(
+                mode,
+                error = "没有找到${mode.displayName()} Tab",
+                candidates = localBundle.candidates,
+                orderConstraints = localBundle.orderConstraints,
+            )
         }
-        val texts = TeaAccessibilityService.findAllNodes { true }
-            .flatMap { listOfNotNull(it.text?.toString(), it.contentDescription?.toString()) }
-            .filter { it.isNotBlank() }
-            .distinct()
+        val texts = currentUiTexts()
+        val constraints = MeituanSelectors.parseOrderConstraints(texts) ?: localBundle.orderConstraints
         val unavailableMarker = if (mode == MeituanRoute.PICKUP) "仅外送" else "仅自取"
         if (texts.any { it.contains(productKeyword) && it.contains(unavailableMarker) }) {
-            return MeituanModePrice(mode, error = "商品不支持${mode.displayName()}" )
+            return MeituanModePrice(
+                mode,
+                error = "商品不支持${mode.displayName()}",
+                candidates = localBundle.candidates,
+                orderConstraints = constraints,
+            )
         }
         val price = DeepSeekClient(apiKey).parseDrawerPrice(texts.joinToString("\n"), mode)
         return if (price != null) {
-            MeituanModePrice(mode, price = price)
+            MeituanModePrice(
+                mode,
+                price = price,
+                candidates = localBundle.candidates,
+                orderConstraints = constraints,
+            )
         } else {
-            MeituanModePrice(mode, error = "${mode.displayName()}暂未显示可下单价格")
+            MeituanModePrice(
+                mode,
+                error = if (mode == MeituanRoute.DELIVERY && localBundle.error != null) {
+                    localBundle.error
+                } else {
+                    "${mode.displayName()}暂未显示可下单价格"
+                },
+                candidates = localBundle.candidates,
+                orderConstraints = constraints,
+            )
         }
     }
 

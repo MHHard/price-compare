@@ -113,6 +113,101 @@ object MeituanSelectors {
     fun isMinimumOrderText(text: String?): Boolean =
         text?.contains("起送") == true
 
+    fun isProductAddAction(text: String?, contentDescription: String?): Boolean =
+        text == "选规格" ||
+            text == "抢购" ||
+            text == "加入购物车" ||
+            contentDescription?.contains("选规格") == true ||
+            contentDescription?.contains("加入购物车") == true
+
+    /** Parses a price exposed by a product card, not an order summary or discount label. */
+    fun parseProductPrice(text: String?): Double? {
+        val value = text?.trim().orEmpty()
+        if (value.isBlank() || isMinimumOrderText(value) ||
+            value.contains("配送费") || value.contains("打包费") ||
+            value.contains("优惠") || (value.contains("满") && value.contains("减"))
+        ) return null
+
+        val withCurrency = Regex("[¥￥]\\s*([0-9]+(?:\\.[0-9]{1,2})?)")
+            .find(value)?.groupValues?.getOrNull(1)
+        val plain = Regex("^\\s*([0-9]+(?:\\.[0-9]{1,2})?)\\s*(?:元)?(?:起)?\\s*$")
+            .matchEntire(value)?.groupValues?.getOrNull(1)
+        return (withCurrency ?: plain)?.toDoubleOrNull()?.takeIf { it.isFinite() && it >= 0.0 }
+    }
+
+    fun isProductNameCandidate(text: String?): Boolean {
+        val value = text?.trim().orEmpty()
+        if (value.isBlank() || value.length > 60 || parseProductPrice(value) != null) return false
+        if (isProductAddAction(value, null) || isMinimumOrderText(value)) return false
+        if (value.matches(Regex("[0-9.￥¥元]+"))) return false
+        val blocked = listOf(
+            "月售", "已售", "好评", "折", "优惠", "配送", "打包费", "商品小计",
+            "商品金额", "去结算", "提交订单", "明细", "规格", "甜度", "冰量",
+        )
+        return blocked.none(value::contains)
+    }
+
+    /** Reads only amounts that are supported by the current cart text. */
+    fun parseOrderConstraints(texts: Iterable<String>): OrderConstraints? {
+        val values = texts.map(String::trim).filter(String::isNotBlank).toList()
+        if (values.isEmpty()) return null
+        val gap = values.asSequence()
+            .mapNotNull { GAP_PATTERN.find(it)?.groupValues?.getOrNull(1)?.toDoubleOrNull() }
+            .firstOrNull { it.isFinite() && it >= 0.0 }
+        val minimumOrder = values.asSequence()
+            .mapNotNull(::parseMinimumOrder)
+            .firstOrNull { it.isFinite() && it >= 0.0 }
+            ?: 0.0
+        val subtotal = parseLabeledAmount(values, listOf("商品小计", "小计", "商品金额", "商品合计"))
+        val deliveryFee = parseLabeledAmount(values, listOf("配送费")) ?: 0.0
+        val packingFee = parseLabeledAmount(values, listOf("打包费", "包装费")) ?: 0.0
+        val checkoutMarker = values.any { value ->
+            value == "去结算" || value.contains("去结算") ||
+                value == "提交订单" || value.contains("提交订单")
+        }
+
+        if (gap != null) {
+            return OrderConstraints(
+                subtotal = subtotal ?: 0.0,
+                minimumOrder = minimumOrder,
+                gap = gap,
+                deliveryFee = deliveryFee,
+                packingFee = packingFee,
+                isOrderable = gap <= ORDERABLE_EPSILON,
+            )
+        }
+        if (minimumOrder > 0.0 && subtotal != null) {
+            val computedGap = (minimumOrder - subtotal).coerceAtLeast(0.0)
+            return OrderConstraints(
+                subtotal = subtotal,
+                minimumOrder = minimumOrder,
+                gap = computedGap,
+                deliveryFee = deliveryFee,
+                packingFee = packingFee,
+                isOrderable = computedGap <= ORDERABLE_EPSILON && checkoutMarker,
+            )
+        }
+        if (checkoutMarker) {
+            return OrderConstraints(
+                subtotal = subtotal ?: 0.0,
+                minimumOrder = minimumOrder,
+                deliveryFee = deliveryFee,
+                packingFee = packingFee,
+                isOrderable = true,
+            )
+        }
+        if (values.any { isMinimumOrderText(it) }) {
+            return OrderConstraints(
+                subtotal = subtotal ?: 0.0,
+                minimumOrder = minimumOrder,
+                deliveryFee = deliveryFee,
+                packingFee = packingFee,
+                isOrderable = false,
+            )
+        }
+        return null
+    }
+
     fun isCartDrawerMarker(text: String?, contentDescription: String?): Boolean =
         text == "已加购商品" || contentDescription == "已加购商品"
 
@@ -204,4 +299,38 @@ object MeituanSelectors {
 
     private fun hasId(node: AccessibilityNodeInfo, suffix: String): Boolean =
         node.viewIdResourceName?.endsWith(suffix) == true
+
+    private fun parseMinimumOrder(text: String): Double? {
+        val afterLabel = Regex("(?:起送价|起送)\\s*[¥￥]?\\s*([0-9]+(?:\\.[0-9]{1,2})?)")
+            .find(text)?.groupValues?.getOrNull(1)
+        val beforeLabel = Regex("[¥￥]?\\s*([0-9]+(?:\\.[0-9]{1,2})?)\\s*起送")
+            .find(text)?.groupValues?.getOrNull(1)
+        return (afterLabel ?: beforeLabel)?.toDoubleOrNull()
+    }
+
+    private fun parseLabeledAmount(values: List<String>, labels: List<String>): Double? {
+        values.forEachIndexed { index, value ->
+            val label = labels.firstOrNull { value.contains(it) } ?: return@forEachIndexed
+            val suffix = value.substringAfter(label)
+            parseAmount(suffix)?.let { return it }
+            values.drop(index + 1).take(2).forEach { next ->
+                parseAmount(next)?.let { return it }
+            }
+        }
+        return null
+    }
+
+    private fun parseAmount(text: String): Double? {
+        val value = text.trim()
+        val amount = Regex("[¥￥]?\\s*([0-9]+(?:\\.[0-9]{1,2})?)\\s*(?:元)?")
+            .matchEntire(value)?.groupValues?.getOrNull(1)
+            ?: return null
+        return amount.toDoubleOrNull()?.takeIf { it.isFinite() && it >= 0.0 }
+    }
+
+    private val GAP_PATTERN = Regex(
+        "(?:差|还差|再买)\\s*[¥￥]?\\s*([0-9]+(?:\\.[0-9]{1,2})?)\\s*(?:元)?\\s*(?:可达)?\\s*起送",
+    )
+
+    private const val ORDERABLE_EPSILON = 0.009
 }
