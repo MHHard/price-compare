@@ -86,7 +86,7 @@ fun MeituanComparisonResult.toSnapshot(target: PlatformTarget): ComparisonSnapsh
         stores = stores,
         status = status,
         usageSummary = usageSummary,
-        cartNotice = "查价结束后美团购物车保持本次查询内容，不会自动恢复。",
+        cartNotice = "查价结束后店内待付款购物车保持本次查询内容，不会自动恢复。",
         failureReason = error,
     )
 }

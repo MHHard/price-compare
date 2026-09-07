@@ -163,7 +163,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun showMeituanCartConsentIfNeeded() {
         if (cartController.canCompare) return
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle(R.string.meituan_cart_consent_title)
             .setMessage(R.string.meituan_cart_consent_message)
             .setNegativeButton(R.string.meituan_cart_consent_reject) { _, _ ->
@@ -174,6 +174,15 @@ class MainActivity : AppCompatActivity() {
             }
             .setCancelable(false)
             .show()
+        dialog.window?.setBackgroundDrawableResource(R.color.bg_card_strong)
+        dialog.findViewById<TextView>(androidx.appcompat.R.id.alertTitle)
+            ?.setTextColor(getColor(R.color.text_primary))
+        dialog.findViewById<TextView>(android.R.id.message)
+            ?.setTextColor(getColor(R.color.text_secondary))
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE)
+            ?.setTextColor(getColor(R.color.text_secondary))
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+            ?.setTextColor(getColor(R.color.brand_primary))
     }
 
     private fun Map<Platform, PlatformTarget>.meituanTarget(): PlatformTarget? =

@@ -37,9 +37,9 @@
     <string name="platform_meituan_voucher">美团 · 买券 / 外卖 / 自取</string>
     <string name="platform_meituan_delivery">美团 · 外卖</string>
     <string name="platform_meituan_pickup">美团 · 自取</string>
-    <string name="meituan_cart_consent_title">比价前请确认购物车</string>
-    <string name="meituan_cart_consent_message">本次比价会清空美团购物车，查价结束不会自动恢复。请确认购物车内没有需要保留的商品。同意后才能继续比价。</string>
+    <string name="meituan_cart_consent_title">比价前请确认店内购物车</string>
+    <string name="meituan_cart_consent_message">本次比价进入每家店铺后，会清空该店用于待付款的购物车；查价结束不会自动恢复。请确认其中没有需要保留的商品。同意后才能继续比价。</string>
     <string name="meituan_cart_consent_reject">暂不比价</string>
     <string name="meituan_cart_consent_accept">同意并继续</string>
-    <string name="meituan_cart_consent_required">未同意清空美团购物车，暂不能自动比价</string>
+    <string name="meituan_cart_consent_required">未同意清空店内待付款购物车，暂不能自动比价</string>
 </resources>

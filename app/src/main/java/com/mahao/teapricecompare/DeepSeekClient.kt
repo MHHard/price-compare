@@ -163,7 +163,7 @@ class DeepSeekClient(
 
     suspend fun parseDrawerPrice(uiText: String, mode: MeituanRoute): Double? {
         val result = complete(
-            systemPrompt = "你是美团购物车价格解析助手。当前模式是${if (mode == MeituanRoute.PICKUP) "自取" else "外送"}。只提取当前模式底部购物车的用户实际需要支付金额：优先读取‘到手约’、‘合计’或‘应付’后的金额；外送如果显示‘差xx起送’或‘再买xx可达起送’，说明暂时不能下单，回复 -1。不要读取商品原价、优惠金额、配送费单项或起送差额。只回复数字，找不到回复 -1。",
+            systemPrompt = "你是美团店内待付款购物车价格解析助手。当前模式是${if (mode == MeituanRoute.PICKUP) "自取" else "外送"}。只提取当前店铺、当前模式底部待付款购物车的用户实际需要支付金额：优先读取‘到手约’、‘合计’或‘应付’后的金额；外送如果显示‘差xx起送’或‘再买xx可达起送’，说明暂时不能下单，回复 -1。不要读取商品原价、优惠金额、配送费单项或起送差额。只回复数字，找不到回复 -1。",
             userPrompt = uiText,
             phase = "parse_drawer_price",
             maxTokens = 32,

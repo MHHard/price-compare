@@ -25,6 +25,13 @@ class MeituanCartControllerTest {
     }
 
     @Test
+    fun consentErrorNamesTheStorePendingPaymentCart() = runBlocking {
+        val result = MeituanCartController(RecordingCartAccessibility()).clearCart()
+
+        assertTrue(result.reason?.contains("店内待付款购物车") == true)
+    }
+
+    @Test
     fun rejectingConsentKeepsAutomaticCartActionsDisabled() = runBlocking {
         val controller = MeituanCartController(RecordingCartAccessibility())
         controller.rejectConsent()

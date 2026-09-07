@@ -109,7 +109,7 @@ class MeituanCompareActivity : AppCompatActivity() {
                 append("\n自取：").append(format(store.pickup))
             }
             result.error?.let { append("\n\n本次未完整完成：").append(it) }
-            append("\n\n仅展示价格，不会自动提交订单或支付。购物车不会自动恢复。")
+            append("\n\n仅展示价格，不会自动提交订单或支付。店内待付款购物车不会自动恢复。")
         }
     }
 

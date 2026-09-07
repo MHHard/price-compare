@@ -50,8 +50,8 @@ private data class NodeCartRow(
 )
 
 /**
- * Clears only rows that are structurally identifiable in the current Meituan accessibility tree.
- * It never uses coordinates and never persists consent.
+ * Clears only rows that are structurally identifiable in the current store's pending-payment
+ * cart. It never uses coordinates and never persists consent.
  */
 class MeituanCartController(
     private val accessibility: MeituanCartAccessibility = TeaAccessibilityAdapter,
@@ -75,16 +75,16 @@ class MeituanCartController(
         if (!canCompare) {
             return CartClearResult(
                 status = CartClearStatus.NOT_AUTHORIZED,
-                reason = "需要先同意清空美团购物车后才能自动比价",
+                reason = "需要先同意清空店内待付款购物车后才能自动比价",
             )
         }
         if (!accessibility.openCart()) {
-            return failed("没有找到可打开的美团购物车")
+            return failed("没有找到当前店内待付款购物车")
         }
         delay(500)
 
         repeat(MAX_CLEAR_ACTIONS) {
-            val observation = accessibility.readCart() ?: return failed("无法读取美团购物车节点")
+            val observation = accessibility.readCart() ?: return failed("无法读取店内待付款购物车节点")
             val hasInvalidRows = observation.rows.any { row ->
                 !MeituanSelectors.isCartProductRow(
                     productName = row.productName,
@@ -94,21 +94,21 @@ class MeituanCartController(
                 )
             }
             if (observation.unknownRowCount > 0 || hasInvalidRows) {
-                return failed("购物车存在未识别商品行，未执行删除")
+                return failed("店内待付款购物车存在未识别商品行，未执行删除")
             }
             if (observation.hasEmptyMarker && observation.rows.isEmpty()) {
                 return CartClearResult(CartClearStatus.CLEARED)
             }
 
             val row = observation.rows.firstOrNull()
-                ?: return failed("购物车存在未识别商品行，未执行删除")
+                ?: return failed("店内待付款购物车存在未识别商品行，未执行删除")
             if (row.quantity <= 0 || !accessibility.clickMinus(row)) {
                 return failed("无法通过无障碍节点减少「${row.productName}」")
             }
             // The next loop reads a new root and new row nodes after this action.
             delay(250)
         }
-        return failed("购物车清空动作超过安全次数，已停止")
+        return failed("店内待付款购物车清空动作超过安全次数，已停止")
     }
 
     private fun failed(reason: String) = CartClearResult(CartClearStatus.CLEAR_FAILED, reason)
