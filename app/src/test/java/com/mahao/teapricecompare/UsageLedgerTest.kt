@@ -7,6 +7,7 @@ import java.util.concurrent.CountDownLatch
 import kotlin.concurrent.thread
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -147,6 +148,11 @@ class UsageLedgerTest {
                 .put("query_id", "legacy-query")
                 .put("phase", "test")
                 .put("model", "deepseek-v4-flash")
+                .put("usage", UsageLedgerRecord(
+                    queryId = "legacy-query",
+                    phase = "test",
+                    model = "deepseek-v4-flash",
+                ).toJson().getJSONObject("usage"))
                 .put("error", "legacy page text with secret=sk-live-value"),
         )
         preferences.edit().putString("deepseek_usage_ledger", legacy.toString()).apply()
@@ -203,6 +209,71 @@ class UsageLedgerTest {
         assertFalse(serialized.contains("unexpected error detail"))
         assertTrue(serialized.contains("query-safe"))
     }
+
+    @Test
+    fun invalidDomainLedgerItemPreventsRewrite() {
+        val preferences = MemoryPreferences()
+        val validRecord = UsageLedgerRecord(
+            queryId = "safe-query",
+            phase = "test",
+            model = "deepseek-v4-flash",
+        )
+        val invalidRecord = validRecord.toJson()
+            .put("duration_ms", -1)
+            .put("cost_usd", -0.01)
+        val original = JSONArray()
+            .put(validRecord.toJson())
+            .put(invalidRecord)
+            .toString()
+        preferences.edit().putString("deepseek_usage_ledger", original).apply()
+        val store = UsageLedgerStore(preferences)
+
+        assertEquals(listOf("safe-query"), store.readAll().map { it.queryId })
+        assertFalse(store.append(validRecord.copy(queryId = "new-query")))
+        assertEquals(original, preferences.getString("deepseek_usage_ledger", null))
+    }
+
+    @Test
+    fun malformedDomainLedgerFieldsAreRejected() {
+        assertFailsWith<IllegalArgumentException> {
+            UsageLedgerRecord.fromJson(baseLedgerJson().remove("query_id"))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            UsageLedgerRecord.fromJson(baseLedgerJson().put("query_id", ""))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            UsageLedgerRecord.fromJson(baseLedgerJson().put("phase", ""))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            UsageLedgerRecord.fromJson(baseLedgerJson().put("model", ""))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            UsageLedgerRecord.fromJson(baseLedgerJson().put("cost_usd", Double.NaN))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            UsageLedgerRecord.fromJson(baseLedgerJson().put("usd_to_cny_rate", Double.POSITIVE_INFINITY))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            UsageLedgerRecord.fromJson(baseLedgerJson().put("duration_ms", -1))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            UsageLedgerRecord.fromJson(
+                baseLedgerJson().put(
+                    "usage",
+                    JSONObject()
+                        .put("prompt_tokens", -1)
+                        .put("completion_tokens", 1)
+                        .put("total_tokens", 2),
+                ),
+            )
+        }
+    }
+
+    private fun baseLedgerJson(): JSONObject = UsageLedgerRecord(
+        queryId = "query",
+        phase = "phase",
+        model = "model",
+    ).toJson()
 
     private class MemoryPreferences : SharedPreferences {
         private val values = mutableMapOf<String, Any?>()

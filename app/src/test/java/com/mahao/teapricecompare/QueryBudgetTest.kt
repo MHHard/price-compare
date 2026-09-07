@@ -198,20 +198,63 @@ class QueryBudgetTest {
 
     @Test
     fun malformedCoreUsageIsIncompleteButLegalUsageRemainsComplete() {
-        val malformedValues = listOf(-1, Double.NaN, Double.POSITIVE_INFINITY)
-        malformedValues.forEach { malformed ->
-            val usage = DeepSeekUsage.fromJson(
-                JSONObject()
-                    .put("prompt_tokens", malformed)
-                    .put("completion_tokens", 1)
-                    .put("total_tokens", 2),
-            )
-            assertFalse(usage.isComplete, "malformed prompt token: $malformed")
+        val malformedValues = listOf(-1, Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY, "not-a-number")
+        listOf("prompt_tokens", "completion_tokens", "total_tokens").forEach { field ->
+            malformedValues.forEach { malformed ->
+                assertFalse(
+                    DeepSeekUsage.fromJson(
+                        usageJson(prompt = 1, completion = 1, total = 2).put(field, malformed),
+                    ).isComplete,
+                    "malformed $field: $malformed",
+                )
+            }
         }
 
         assertTrue(
             DeepSeekUsage.fromJson(
                 JSONObject("""{"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2}"""),
+            ).isComplete,
+        )
+    }
+
+    @Test
+    fun invalidCacheAndTotalUsageIsIncomplete() {
+        val invalidValues = listOf(-1, Double.NaN, Double.POSITIVE_INFINITY, "not-a-number")
+        invalidValues.forEach { invalid ->
+            assertFalse(
+                DeepSeekUsage.fromJson(
+                    usageJson(prompt = 10, completion = 2, total = 12)
+                        .put("prompt_cache_hit_tokens", invalid),
+                ).isComplete,
+                "invalid cache hit: $invalid",
+            )
+            assertFalse(
+                DeepSeekUsage.fromJson(
+                    usageJson(prompt = 10, completion = 2, total = 12)
+                        .put("prompt_cache_miss_tokens", invalid),
+                ).isComplete,
+                "invalid cache miss: $invalid",
+            )
+            assertFalse(
+                DeepSeekUsage.fromJson(
+                    usageJson(prompt = 10, completion = 2, total = 12)
+                        .put("total_tokens", invalid),
+                ).isComplete,
+                "invalid total: $invalid",
+            )
+        }
+
+        assertFalse(
+            DeepSeekUsage.fromJson(
+                usageJson(prompt = 10, completion = 2, total = 12)
+                    .put("prompt_cache_hit_tokens", 8)
+                    .put("prompt_cache_miss_tokens", 3),
+            ).isComplete,
+        )
+        assertFalse(
+            DeepSeekUsage.fromJson(
+                usageJson(prompt = 10, completion = 2, total = 12)
+                    .put("total_tokens", 11),
             ).isComplete,
         )
     }
@@ -242,4 +285,10 @@ class QueryBudgetTest {
         assertEquals(0.0, client.safeCostCny(Double.NaN, 7.2))
         assertEquals(8.64, client.safeCostCny(1.2, 7.2), 0.000000001)
     }
+
+    private fun usageJson(prompt: Any, completion: Any, total: Any): JSONObject =
+        JSONObject()
+            .put("prompt_tokens", prompt)
+            .put("completion_tokens", completion)
+            .put("total_tokens", total)
 }

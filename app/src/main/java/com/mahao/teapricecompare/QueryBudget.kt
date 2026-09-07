@@ -126,51 +126,66 @@ data class DeepSeekUsage(
 ) {
     companion object {
         fun fromJson(json: JSONObject): DeepSeekUsage {
-            val prompt = readToken(json, "prompt_tokens")
-            val completion = readToken(json, "completion_tokens")
-            val reasoning = json.optInt("reasoning_tokens", 0).coerceAtLeast(0).let { direct ->
-                if (direct != 0) direct else {
-                    json.optJSONObject("completion_tokens_details")
-                        ?.optInt("reasoning_tokens", 0)
-                        ?.coerceAtLeast(0)
-                        ?: 0
-                }
+            val promptValue = readToken(json, "prompt_tokens")
+            val completionValue = readToken(json, "completion_tokens")
+            val totalValue = readToken(json, "total_tokens")
+            val prompt = promptValue ?: 0
+            val completion = completionValue ?: 0
+            val total = totalValue ?: 0
+
+            val directReasoning = readOptionalToken(json, "reasoning_tokens")
+            val detailsPresent = json.has("completion_tokens_details")
+            val details = json.optJSONObject("completion_tokens_details")
+            val detailReasoning = details?.let { readOptionalToken(it, "reasoning_tokens") }
+            val reasoning = when {
+                directReasoning != null && directReasoning != 0 -> directReasoning
+                detailReasoning != null -> detailReasoning
+                else -> directReasoning ?: 0
             }
-            val hasHit = json.has("prompt_cache_hit_tokens")
-            val hasMiss = json.has("prompt_cache_miss_tokens")
-            val declaredHit = json.optInt("prompt_cache_hit_tokens", 0).coerceAtLeast(0)
-            val declaredMiss = json.optInt("prompt_cache_miss_tokens", 0).coerceAtLeast(0)
+            val reasoningValid = (!json.has("reasoning_tokens") || directReasoning != null) &&
+                (!detailsPresent || details != null) &&
+                (details?.let { !it.has("reasoning_tokens") || detailReasoning != null } ?: true)
+
+            val hitValue = readOptionalToken(json, "prompt_cache_hit_tokens")
+            val missValue = readOptionalToken(json, "prompt_cache_miss_tokens")
+            val cacheFieldsValid = (!json.has("prompt_cache_hit_tokens") || hitValue != null) &&
+                (!json.has("prompt_cache_miss_tokens") || missValue != null)
             val hit = when {
-                hasHit -> declaredHit.coerceAtMost(prompt)
-                hasMiss -> (prompt - declaredMiss).coerceAtLeast(0)
+                hitValue != null -> hitValue
+                missValue != null -> (prompt - missValue).coerceAtLeast(0)
                 else -> 0
             }
             val miss = when {
-                hasMiss -> declaredMiss.coerceAtMost((prompt - hit).coerceAtLeast(0))
-                else -> (prompt - hit).coerceAtLeast(0)
+                missValue != null -> missValue
+                hitValue != null -> (prompt - hitValue).coerceAtLeast(0)
+                else -> prompt
             }
-            val total = readToken(json, "total_tokens")
-            val isComplete = hasToken(json, "prompt_tokens") &&
-                hasToken(json, "completion_tokens") &&
-                hasToken(json, "total_tokens")
+            val cacheConsistent = hit.toLong() + miss.toLong() <= prompt.toLong()
+            val isComplete = promptValue != null &&
+                completionValue != null &&
+                totalValue != null &&
+                reasoningValid &&
+                cacheFieldsValid &&
+                cacheConsistent &&
+                total.toLong() >= prompt.toLong() + completion.toLong()
             return DeepSeekUsage(prompt, completion, reasoning, hit, miss, total, isComplete)
         }
 
-        private fun hasToken(json: JSONObject, key: String): Boolean {
-            val value = json.opt(key) as? Number ?: return false
-            val doubleValue = value.toDouble()
-            return doubleValue.isFinite() &&
-                doubleValue >= 0.0 &&
-                doubleValue <= Int.MAX_VALUE.toDouble() &&
-                doubleValue == value.toLong().toDouble()
-        }
+        private fun readOptionalToken(json: JSONObject, key: String): Int? =
+            if (json.has(key)) readToken(json, key) else null
 
-        private fun readToken(json: JSONObject, key: String): Int =
-            (json.opt(key) as? Number)
-                ?.takeIf { hasToken(json, key) }
-                ?.toLong()
-                ?.toInt()
-                ?: 0
+        private fun readToken(json: JSONObject, key: String): Int? {
+            val value = json.opt(key) as? Number ?: return null
+            val doubleValue = value.toDouble()
+            if (!doubleValue.isFinite() ||
+                doubleValue < 0.0 ||
+                doubleValue > Int.MAX_VALUE.toDouble() ||
+                doubleValue != value.toLong().toDouble()
+            ) {
+                return null
+            }
+            return value.toLong().toInt()
+        }
     }
 }
 

@@ -51,24 +51,37 @@ data class UsageLedgerRecord(
 
     companion object {
         internal fun fromJson(json: JSONObject): UsageLedgerRecord {
+            val queryId = requiredText(json, "query_id")
+            val phase = requiredText(json, "phase")
+            val model = requiredText(json, "model")
+            val usageJson = json.optJSONObject("usage")
+            require(usageJson != null) { "usage is required" }
+            val usage = DeepSeekUsage.fromJson(usageJson)
+            require(usage.isComplete) { "usage is invalid" }
             return UsageLedgerRecord(
-                queryId = json.optString("query_id"),
-                requestId = json.optNullableString("request_id"),
-                apiRequestId = json.optNullableString("api_request_id"),
-                phase = json.optString("phase"),
-                model = json.optString("model"),
-                startedAt = json.optLong("started_at", 0L),
-                durationMs = json.optLong("duration_ms", 0L),
-                usage = DeepSeekUsage.fromJson(json.optJSONObject("usage") ?: JSONObject()),
-                priceVersion = json.optNullableString("price_version"),
-                billingPeriod = json.optNullableString("billing_period"),
-                costUsd = json.optDouble("cost_usd", 0.0),
-                usdToCnyRate = json.optDouble("usd_to_cny_rate", 0.0),
-                costCny = json.optDouble("cost_cny", 0.0),
-                success = json.optBoolean("success", false),
-                error = sanitizeLedgerError(json.optNullableString("error")),
-                usageEstimated = json.optBoolean("usage_estimated", false),
+                queryId = queryId,
+                requestId = json.readOptionalText("request_id"),
+                apiRequestId = json.readOptionalText("api_request_id"),
+                phase = phase,
+                model = model,
+                startedAt = json.readNonNegativeLong("started_at"),
+                durationMs = json.readNonNegativeLong("duration_ms"),
+                usage = usage,
+                priceVersion = json.readOptionalText("price_version"),
+                billingPeriod = json.readOptionalText("billing_period"),
+                costUsd = json.readOptionalFiniteNonNegativeDouble("cost_usd"),
+                usdToCnyRate = json.readOptionalFiniteNonNegativeDouble("usd_to_cny_rate"),
+                costCny = json.readOptionalFiniteNonNegativeDouble("cost_cny"),
+                success = json.readOptionalBoolean("success", false),
+                error = sanitizeLedgerError(json.readOptionalText("error")),
+                usageEstimated = json.readOptionalBoolean("usage_estimated", false),
             )
+        }
+
+        private fun requiredText(json: JSONObject, key: String): String {
+            val value = json.opt(key)
+            require(value is String && value.isNotBlank()) { "$key is required" }
+            return value
         }
     }
 }
@@ -135,8 +148,45 @@ private fun JSONObject.putNullable(key: String, value: String?) {
     put(key, value ?: JSONObject.NULL)
 }
 
-private fun JSONObject.optNullableString(key: String): String? =
-    if (isNull(key)) null else optString(key).takeIf { it.isNotBlank() }
+private fun JSONObject.readOptionalText(key: String): String? {
+    if (!has(key) || isNull(key)) return null
+    val value = opt(key)
+    require(value is String) { "$key must be text" }
+    return value.takeIf { it.isNotBlank() }
+}
+
+private fun JSONObject.readNonNegativeLong(key: String): Long {
+    if (!has(key) || isNull(key)) return 0L
+    val value = opt(key)
+    val number = value as? Number ?: throw IllegalArgumentException("$key must be numeric")
+    if (number is Long || number is Int || number is Short || number is Byte) {
+        require(number.toLong() >= 0L) { "$key must be non-negative" }
+        return number.toLong()
+    }
+    val doubleValue = number.toDouble()
+    require(
+        doubleValue.isFinite() &&
+            doubleValue >= 0.0 &&
+            doubleValue <= Long.MAX_VALUE.toDouble() &&
+            doubleValue == number.toLong().toDouble(),
+    ) { "$key must be a finite non-negative integer" }
+    return number.toLong()
+}
+
+private fun JSONObject.readOptionalFiniteNonNegativeDouble(key: String): Double {
+    if (!has(key) || isNull(key)) return 0.0
+    val value = opt(key)
+    val number = value as? Number ?: throw IllegalArgumentException("$key must be numeric")
+    return number.toDouble().takeIf { it.isFinite() && it >= 0.0 }
+        ?: throw IllegalArgumentException("$key must be finite and non-negative")
+}
+
+private fun JSONObject.readOptionalBoolean(key: String, default: Boolean): Boolean {
+    if (!has(key) || isNull(key)) return default
+    val value = opt(key)
+    require(value is Boolean) { "$key must be boolean" }
+    return value
+}
 
 private fun sanitizeLedgerError(error: String?): String? {
     val normalized = error?.trim() ?: return null
